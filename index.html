@@ -478,7 +478,7 @@
         .btn-secondary:hover { background-color: #475569; box-shadow: 0 6px 16px rgba(100, 116, 139, 0.25); }
 
         .admin-action-btn {
-            width: 210px;
+            width: 100%;
             height: 44px;
             display: inline-flex !important;
             align-items: center;
@@ -490,6 +490,15 @@
             box-sizing: border-box;
             border-radius: 8px;
             line-height: 1.2;
+        }
+
+        /* 兩排三欄網格佈局 */
+        .admin-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+            margin-bottom: 20px;
         }
 
         .score-display {
@@ -586,23 +595,20 @@
 
         <!-- Admin View Student Exam Records, Uncorrected List & Leaderboards -->
         <div class="records-section">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-                <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
+            <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
+
+            <!-- 按鈕重排區塊：每排三個，平均排列於下方 -->
+            <div class="admin-btn-grid">
+                <!-- 第一排 -->
+                <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
+                <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 當週排名</button>
+                <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ 自訂區域查詢</button>
                 
-                <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 當週排名</button>
-                        <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ 自訂範圍排名</button>
-                    </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
-                        <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 缺考名單</button>
-                    </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                        <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
-                    </div>
-                </div>
+                <!-- 第二排 -->
+                <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ 未訂正查詢</button>
+                <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 缺考查詢</button>
             </div>
+
             <div id="records-list"></div>
         </div>
     </div>
