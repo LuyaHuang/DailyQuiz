@@ -8,9 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
-            --primary-color: #4338ca;
-            --primary-hover: #3730a3;
-            --bg-color: #f8fafc;
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: #eeef2;
+            --bg-color: #f1f5f9;
             --card-bg: #ffffff;
             --text-main: #0f172a;
             --text-muted: #64748b;
@@ -20,107 +21,151 @@
             --warning-color: #d97706;
             --purple-color: #9333ea;
             --admin-color: #d97706;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+            --shadow-btn: 0 4px 12px rgba(79, 70, 229, 0.18);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             color: var(--text-main);
-            padding: 20px 16px;
+            padding: 32px 16px;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
+            align-items: flex-start;
         }
 
         .container {
             width: 100%;
-            max-width: 800px;
+            max-width: 840px;
             background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            padding: 28px;
-            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            padding: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
         }
 
-        /* Header Layout (靠左對齊、同排併排) */
+        /* Header Layout */
         .header-container {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: flex-start;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 28px;
+            margin-bottom: 24px;
             flex-wrap: nowrap;
         }
 
-        /* Logo (維持固定 180px 等比例縮放) */
+        /* Logo (220px 等比例縮放) */
         .brand-logo { 
-            width: 180px; 
+            width: 220px; 
             height: auto; 
             display: block; 
             object-fit: contain;
             flex-shrink: 0;
+            transition: transform 0.25s ease;
         }
 
-        .header-text { text-align: left; }
-        .header-text h1 { color: var(--primary-color); font-size: 2.0rem; line-height: 1.2; margin-bottom: 4px; }
-        .subtitle { color: var(--text-muted); font-size: 1.0rem; }
+        .brand-logo:hover {
+            transform: scale(1.02);
+        }
 
-        /* 學生姓名標籤 (調整：往下移一行並空出一行間距) */
+        /* Header Text */
+        .header-text { 
+            text-align: left; 
+            padding-left: 10px;
+        }
+
+        .header-text h1 { 
+            color: var(--primary-color); 
+            font-size: 2.1rem; 
+            font-weight: 800;
+            line-height: 1.25; 
+            margin-bottom: 6px; 
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle { 
+            color: var(--text-muted); 
+            font-size: 1.02rem; 
+            font-weight: 500;
+        }
+
+        /* 獨立成行的學生姓名標籤區塊 */
+        .user-badge-wrapper {
+            margin-bottom: 28px;
+            text-align: left;
+        }
+
         .user-badge {
             background-color: #e0e7ff;
             color: var(--primary-color);
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-size: 1.1rem;
+            padding: 10px 22px;
+            border-radius: 9999px;
+            font-size: 1.05rem;
             font-weight: 700;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            margin-top: 24px; /* 增加上方留白，視覺上往下移一行並隔開 */
             border: 1px solid #c7d2fe;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
         }
 
         #current-user-name {
-            font-size: 1.35rem;
+            font-size: 1.25rem;
             font-weight: 800;
             color: #1e1b4b;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .user-badge.admin-mode {
             background-color: #fef3c7;
             color: var(--admin-color);
             border-color: #fde68a;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.12);
         }
 
         /* Card Elements */
         .card-box {
             text-align: center;
-            padding: 20px;
-            border: 2px dashed var(--border-color);
-            border-radius: 12px;
-            background: #fafafa;
-            margin-bottom: 16px;
+            padding: 32px 24px;
+            border: 2px dashed #cbd5e1;
+            border-radius: var(--radius-md);
+            background: #f8fafc;
+            margin-bottom: 24px;
+            transition: all 0.2s ease;
         }
 
+        .card-box:hover {
+            border-color: #a5b4fc;
+            background: #f1f5f9;
+        }
+
+        /* System Login 標題字體加大 */
         .login-title {
-            font-size: 1.85rem;
+            font-size: 2.3rem;
             font-weight: 800;
-            margin-bottom: 16px;
+            margin-bottom: 22px;
             color: var(--text-main);
+            letter-spacing: -0.5px;
         }
 
         .input-text {
             width: 100%;
             max-width: 380px;
-            padding: 10px 14px;
-            font-size: 1rem;
+            padding: 14px 18px;
+            font-size: 1.05rem;
             border: 2px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 10px;
             outline: none;
-            margin: 6px 0 16px 0;
-            transition: border-color 0.2s;
+            margin: 6px 0 20px 0;
+            transition: all 0.2s ease;
+            background: #ffffff;
         }
 
         .input-text::placeholder {
@@ -129,90 +174,103 @@
 
         .input-text:focus {
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.15);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
         }
 
         .file-label {
             display: inline-block;
-            padding: 8px 18px;
+            padding: 10px 20px;
             background: #e0e7ff;
             color: var(--primary-color);
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
             font-size: 0.95rem;
-            margin: 8px 0;
-            transition: background 0.2s;
+            margin: 10px 0;
+            transition: all 0.2s ease;
         }
 
-        .file-label:hover { background: #c7d2fe; }
+        .file-label:hover { 
+            background: #c7d2fe; 
+            transform: translateY(-1px);
+        }
 
-        .status-msg { font-size: 0.9rem; font-weight: 600; margin-top: 6px; }
+        .status-msg { font-size: 0.92rem; font-weight: 600; margin-top: 8px; }
         .status-msg.error { color: var(--danger-color); }
         .status-msg.success { color: var(--success-color); }
         .status-msg.warning { color: var(--warning-color); }
 
         /* Calendar Component */
         .calendar-card {
-            background: #fff;
+            background: #ffffff;
             border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
+            border-radius: var(--radius-md);
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
         }
 
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 14px;
         }
 
-        .calendar-header h3 { font-size: 1.05rem; color: var(--text-main); }
+        .calendar-header h3 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
 
         .calendar-nav-btn {
             background: #f1f5f9;
-            border: none;
-            padding: 4px 10px;
-            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.88rem;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+
+        .calendar-nav-btn:hover {
+            background: #e2e8f0;
         }
 
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
+            gap: 6px;
             text-align: center;
         }
 
         .cal-day-header {
             font-weight: 700;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             color: var(--text-muted);
-            padding-bottom: 4px;
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .cal-day {
-            height: 36px;
+            height: 40px;
             display: flex;
             flex-direction: row;
             align-items: center;
             justify-content: center;
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             position: relative;
             font-weight: 600;
-            font-size: 0.85rem;
-            transition: all 0.2s;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
             background: #ffffff;
         }
 
         .cal-day:hover {
             border-color: var(--primary-color);
             background: #f8fafc;
+            transform: translateY(-1px);
         }
 
         .cal-day.empty { border: none; cursor: default; background: transparent; }
@@ -220,20 +278,23 @@
         .cal-day.today {
             border: 2px solid var(--primary-color);
             color: var(--primary-color);
+            font-weight: 800;
         }
 
         .cal-day.selected {
             background-color: var(--primary-color) !important;
             color: #ffffff !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
         }
 
         .cal-day .has-exam-dot {
-            width: 5px;
-            height: 5px;
+            width: 6px;
+            height: 6px;
             background-color: var(--success-color);
             border-radius: 50%;
             position: absolute;
-            bottom: 2px;
+            bottom: 3px;
         }
 
         .cal-day.selected .has-exam-dot {
@@ -244,8 +305,8 @@
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.55);
-            backdrop-filter: blur(2px);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -254,26 +315,26 @@
 
         .modal-card {
             background: #ffffff;
-            padding: 24px;
-            border-radius: 16px;
+            padding: 28px;
+            border-radius: var(--radius-lg);
             width: 90%;
-            max-width: 420px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 440px;
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.15);
             border: 1px solid var(--border-color);
         }
 
         .modal-title {
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary-color);
-            margin-bottom: 16px;
+            margin-bottom: 18px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
         .date-picker-group {
-            margin-bottom: 14px;
+            margin-bottom: 16px;
             text-align: left;
         }
 
@@ -295,6 +356,7 @@
             background: #fff;
             color: var(--text-main);
             font-family: inherit;
+            transition: border-color 0.2s ease;
         }
 
         .date-picker-input:focus {
@@ -303,19 +365,20 @@
 
         .modal-btn-row {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 12px;
+            margin-top: 24px;
         }
 
         /* Question & Results Styling */
         .section-def-banner {
-            padding: 14px;
-            border-radius: 0 8px 8px 0;
-            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 22px;
             font-size: 1.05rem;
             font-weight: 600;
             white-space: pre-line;
             transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
 
         .banner-blue {
@@ -332,53 +395,87 @@
 
         @keyframes flash-banner-effect {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.2; transform: scale(0.995); }
+            50% { opacity: 0.3; transform: scale(0.995); }
         }
 
         .banner-flash {
             animation: flash-banner-effect 0.35s ease-in-out 3;
         }
 
-        .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 20px; }
+        .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
         .points-tag { color: #0284c7; font-size: 1.1rem; font-weight: 600; margin-left: 8px; }
 
-        .options-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 26px; }
+        .options-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
 
         .option-item {
             display: flex;
             align-items: center;
             padding: 14px 18px;
             border: 2px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1.15rem;
+            transition: all 0.2s ease;
+            font-size: 1.1rem;
             line-height: 1.4;
+            background: #ffffff;
         }
 
-        .option-item:hover { border-color: var(--primary-color); background-color: #f8fafc; }
-        .option-item input[type="radio"] { margin-right: 14px; width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary-color); }
+        .option-item:hover { 
+            border-color: var(--primary-color); 
+            background-color: #f8fafc; 
+            transform: translateX(2px);
+        }
+        
+        .option-item input[type="radio"] { 
+            margin-right: 14px; 
+            width: 20px; 
+            height: 20px; 
+            cursor: pointer; 
+            accent-color: var(--primary-color); 
+        }
 
         .text-answer-input {
-            width: 100%; padding: 14px 18px; font-size: 1.15rem;
-            border: 2px solid var(--border-color); border-radius: 8px; outline: none; margin-bottom: 26px;
+            width: 100%; 
+            padding: 14px 18px; 
+            font-size: 1.1rem;
+            border: 2px solid var(--border-color); 
+            border-radius: 10px; 
+            outline: none; 
+            margin-bottom: 28px;
+            transition: all 0.2s ease;
+        }
+
+        .text-answer-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
         }
 
         .btn {
             display: block; width: 100%; padding: 14px; background-color: var(--primary-color);
-            color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700;
-            cursor: pointer; transition: background-color 0.2s;
+            color: white; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease;
+            box-shadow: var(--shadow-btn);
         }
-        .btn:hover { background-color: var(--primary-hover); }
-        .btn-inline { display: inline-block; width: auto; padding: 8px 18px; font-size: 0.95rem; }
-        .btn-danger { background-color: var(--danger-color); }
-        .btn-danger:hover { background-color: #b91c1c; }
-        .btn-warning { background-color: var(--warning-color); }
-        .btn-warning:hover { background-color: #b45309; }
-        .btn-purple { background-color: var(--purple-color); }
-        .btn-purple:hover { background-color: #7e22ce; }
-        .btn-secondary { background-color: #64748b; }
-        .btn-secondary:hover { background-color: #475569; }
+        
+        .btn:hover { 
+            background-color: var(--primary-hover); 
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.25);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-inline { display: inline-block; width: auto; padding: 10px 22px; font-size: 0.95rem; }
+        .btn-danger { background-color: var(--danger-color); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.18); }
+        .btn-danger:hover { background-color: #b91c1c; box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25); }
+        .btn-warning { background-color: var(--warning-color); box-shadow: 0 4px 12px rgba(217, 119, 6, 0.18); }
+        .btn-warning:hover { background-color: #b45309; box-shadow: 0 6px 16px rgba(217, 119, 6, 0.25); }
+        .btn-purple { background-color: var(--purple-color); box-shadow: 0 4px 12px rgba(147, 51, 234, 0.18); }
+        .btn-purple:hover { background-color: #7e22ce; box-shadow: 0 6px 16px rgba(147, 51, 234, 0.25); }
+        .btn-secondary { background-color: #64748b; box-shadow: 0 4px 12px rgba(100, 116, 139, 0.18); }
+        .btn-secondary:hover { background-color: #475569; box-shadow: 0 6px 16px rgba(100, 116, 139, 0.25); }
 
         .admin-action-btn {
             width: 210px;
@@ -396,31 +493,32 @@
         }
 
         .score-display {
-            text-align: center; padding: 20px; background: linear-gradient(135deg, #4338ca, #312e81);
-            color: white; border-radius: 10px; margin-bottom: 20px;
+            text-align: center; padding: 24px; background: linear-gradient(135deg, #4f46e5, #312e81);
+            color: white; border-radius: 12px; margin-bottom: 24px;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
         }
-        .score-number { font-size: 2.5rem; font-weight: 800; }
+        .score-number { font-size: 2.75rem; font-weight: 800; letter-spacing: -1px; }
 
-        .result-card { border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; background: white; text-align: left; }
-        .result-card.correct { border-left: 5px solid var(--success-color); }
-        .result-card.incorrect { border-left: 5px solid var(--danger-color); }
+        .result-card { border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 12px; background: white; text-align: left; }
+        .result-card.correct { border-left: 6px solid var(--success-color); }
+        .result-card.incorrect { border-left: 6px solid var(--danger-color); }
 
         .res-header { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px; }
         .tag-correct { color: var(--success-color); }
         .tag-incorrect { color: var(--danger-color); }
 
         .records-section {
-            margin-top: 20px;
+            margin-top: 24px;
             border-top: 2px solid var(--border-color);
-            padding-top: 16px;
+            padding-top: 20px;
             text-align: left;
         }
         .student-record-item {
             background: #f8fafc;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
         }
         .record-summary {
             display: flex;
@@ -435,17 +533,19 @@
 <body>
 
 <div class="container">
-    <!-- Header -->
+    <!-- Header (Logo + Title) -->
     <div class="header-container">
         <img src="LUYA_LOGO.jpg" alt="LUYA Academy Logo" class="brand-logo" onerror="this.onerror=null; this.src='LUYA_LOGO.png';">
         <div class="header-text">
             <h1>Online Examination System</h1>
             <div class="subtitle">Cloud Testing & Automated Scoring Portal</div>
-            
-            <!-- 學生姓名標籤 (已下移一行並留出空間) -->
-            <div id="user-display" class="user-badge hidden">
-                <span id="user-role-icon">👤</span> <span id="user-role-label">Student</span>: <span id="current-user-name"></span>
-            </div>
+        </div>
+    </div>
+
+    <!-- 學生/管理員姓名標籤 (獨立成行) -->
+    <div id="user-display" class="user-badge-wrapper hidden">
+        <div class="user-badge">
+            <span id="user-role-icon">👤</span> <span id="user-role-label">Student</span>: <span id="current-user-name"></span>
         </div>
     </div>
 
@@ -460,7 +560,7 @@
 
     <!-- Step 1-A: Admin Portal -->
     <div id="screen-admin" class="hidden">
-        <h2 style="margin-bottom: 12px; color: var(--admin-color); font-size: 1.3rem;">⚙️ Administrator Exam Manager</h2>
+        <h2 style="margin-bottom: 14px; color: var(--admin-color); font-size: 1.35rem;">⚙️ Administrator Exam Manager</h2>
         
         <div class="calendar-card">
             <div class="calendar-header">
@@ -473,7 +573,7 @@
 
         <div class="card-box">
             <h3>Target Date: <span id="admin-target-date" style="color: var(--primary-color);">YYYY-MM-DD</span></h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">Upload Excel file. It will automatically upload to Firebase cloud for the selected date.</p>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">Upload Excel file. It will automatically upload to Firebase cloud for the selected date.</p>
             
             <div id="admin-status-info" class="status-msg" style="margin: 10px 0;"></div>
 
@@ -509,7 +609,7 @@
 
     <!-- Step 1-B: Student Portal -->
     <div id="screen-student-select" class="hidden">
-        <h2 style="margin-bottom: 12px; font-size: 1.3rem;">📅 Daily Test Selection</h2>
+        <h2 style="margin-bottom: 14px; font-size: 1.35rem;">📅 Daily Test Selection</h2>
         
         <div class="calendar-card">
             <div class="calendar-header">
@@ -547,9 +647,9 @@
             <div class="score-number" id="final-score" style="margin-top: 8px;">0 / 100</div>
         </div>
 
-        <h3 style="margin-bottom: 12px;">Answer Breakdown</h3>
+        <h3 style="margin-bottom: 14px;">Answer Breakdown</h3>
         <div id="result-list"></div>
-        <button class="btn" onclick="location.reload()" style="margin-top: 16px;">Return to Menu / Switch User</button>
+        <button class="btn" onclick="location.reload()" style="margin-top: 18px;">Return to Menu / Switch User</button>
     </div>
 </div>
 
@@ -722,6 +822,8 @@
         currentCalDate = new Date();
         selectedDateStr = getFormattedDate(new Date());
 
+        const userBadgeEl = document.querySelector('.user-badge');
+
         if (normalizedInput === 'administrator') {
             isAdmin = true;
             currentUser = "Administrator";
@@ -729,7 +831,8 @@
             document.getElementById('user-role-icon').innerText = "⚙️";
             document.getElementById('user-role-label').innerText = "Role";
             document.getElementById('current-user-name').innerText = "Admin";
-            document.getElementById('user-display').classList.add('admin-mode');
+            
+            if (userBadgeEl) userBadgeEl.classList.add('admin-mode');
             document.getElementById('user-display').classList.remove('hidden');
 
             document.getElementById('screen-login').classList.add('hidden');
@@ -750,6 +853,8 @@
             document.getElementById('user-role-icon').innerText = "👤";
             document.getElementById('user-role-label').innerText = "Student";
             document.getElementById('current-user-name').innerText = currentUser;
+            
+            if (userBadgeEl) userBadgeEl.classList.remove('admin-mode');
             document.getElementById('user-display').classList.remove('hidden');
 
             document.getElementById('screen-login').classList.add('hidden');
