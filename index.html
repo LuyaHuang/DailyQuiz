@@ -18,6 +18,7 @@
             --success-color: #16a34a;
             --danger-color: #dc2626;
             --warning-color: #d97706;
+            --purple-color: #9333ea;
             --admin-color: #d97706;
         }
 
@@ -219,6 +220,73 @@
             background-color: #ffffff;
         }
 
+        /* Modal Layout */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-picker-group {
+            margin-bottom: 14px;
+            text-align: left;
+        }
+
+        .date-picker-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .date-picker-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            background: #fff;
+            color: var(--text-main);
+            font-family: inherit;
+        }
+
+        .date-picker-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .modal-btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
         /* Question & Results Styling */
         .section-def-banner {
             padding: 14px;
@@ -287,8 +355,26 @@
         .btn-danger:hover { background-color: #b91c1c; }
         .btn-warning { background-color: var(--warning-color); }
         .btn-warning:hover { background-color: #b45309; }
+        .btn-purple { background-color: var(--purple-color); }
+        .btn-purple:hover { background-color: #7e22ce; }
         .btn-secondary { background-color: #64748b; }
         .btn-secondary:hover { background-color: #475569; }
+
+        /* 統一管理員功能按鈕樣式 (固定尺寸 + 置中) */
+        .admin-action-btn {
+            width: 210px;
+            height: 44px;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0 12px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            box-sizing: border-box;
+            border-radius: 8px;
+            line-height: 1.2;
+        }
 
         .score-display {
             text-align: center; padding: 20px; background: linear-gradient(135deg, #4338ca, #312e81);
@@ -381,19 +467,24 @@
 
         <!-- Admin View Student Exam Records, Uncorrected List & Leaderboards -->
         <div class="records-section">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                 <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
-                <!-- 依需求分第一排與第二排 -->
+                
+                <!-- 5個功能按鈕分三行排列 -->
                 <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                    <!-- 第一排按鈕 -->
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
-                        <button class="btn btn-inline btn-warning" onclick="calculateCustomRangeLeaderboard()">🗓️ 檢視自訂範圍的排名</button>
+                    <!-- 第一行按鈕 -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 當週排名</button>
+                        <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ 自訂範圍排名</button>
                     </div>
-                    <!-- 第二排按鈕 -->
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn btn-inline btn-danger" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
-                        <button class="btn btn-inline btn-secondary" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
+                    <!-- 第二行按鈕 -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
+                        <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 缺考名單</button>
+                    </div>
+                    <!-- 第三行按鈕 -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
                     </div>
                 </div>
             </div>
@@ -444,6 +535,27 @@
         <h3 style="margin-bottom: 12px;">Answer Breakdown</h3>
         <div id="result-list"></div>
         <button class="btn" onclick="location.reload()" style="margin-top: 16px;">Return to Menu / Switch User</button>
+    </div>
+</div>
+
+<!-- 自訂日期範圍萬年曆選擇彈窗 (Modal) -->
+<div id="modal-date-range" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-title">
+            <span>🗓️ 選擇自訂排名日期範圍</span>
+        </div>
+        <div class="date-picker-group">
+            <label for="custom-start-date">▶ 起始日期 (Start Date)：</label>
+            <input type="date" id="custom-start-date" class="date-picker-input">
+        </div>
+        <div class="date-picker-group">
+            <label for="custom-end-date">◀ 結束日期 (End Date)：</label>
+            <input type="date" id="custom-end-date" class="date-picker-input">
+        </div>
+        <div class="modal-btn-row">
+            <button class="btn btn-secondary" onclick="closeCustomRangeModal()">取消</button>
+            <button class="btn" onclick="submitCustomRangeLeaderboard()">🔍 查詢排名</button>
+        </div>
     </div>
 </div>
 
@@ -659,6 +771,8 @@
 
         let examDates = new Set();
         let uncorrectedDates = new Set();
+        let submittedDates = new Set();
+        let absentDates = new Set();
 
         try {
             const examsSnap = await getDocs(collection(db, "exams"));
@@ -669,9 +783,17 @@
                 recordsSnap.forEach(d => {
                     const data = d.data();
                     if (data.studentName && data.studentName.toLowerCase() === currentUser.toLowerCase()) {
+                        submittedDates.add(data.date);
                         if (data.details && data.details.some(item => !item.isCorrect)) {
                             uncorrectedDates.add(data.date);
                         }
+                    }
+                });
+
+                // 計算缺考日期：雲端有考試、日期 <= 今天、且學生尚未考過
+                examDates.forEach(dateStr => {
+                    if (dateStr <= todayStr && !submittedDates.has(dateStr)) {
+                        absentDates.add(dateStr);
                     }
                 });
             }
@@ -690,8 +812,11 @@
             const dayCell = document.createElement('div');
             dayCell.className = 'cal-day';
 
+            // 學生視角：優先顯示「未訂正 ❌」，若無未訂正再檢查是否「缺考 ⛔」
             if (!isAdmin && uncorrectedDates.has(cellDateStr)) {
-                dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right: 2px;">❌</span><span>${day}</span>`;
+                dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">❌</span><span>${day}</span>`;
+            } else if (!isAdmin && absentDates.has(cellDateStr)) {
+                dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">⛔</span><span>${day}</span>`;
             } else {
                 dayCell.innerText = day;
             }
@@ -826,7 +951,7 @@
         });
     }
 
-    // 計算全站所有學生未訂正狀況，含詳細明細
+    // 計算全站所有學生未訂正狀況
     async function calculateUncorrectedStudents() {
         const container = document.getElementById('records-list');
         container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
@@ -923,30 +1048,169 @@
         container.innerHTML = tableHtml;
     }
 
+    // 計算全站學生缺考狀況
+    async function calculateAbsentStudents() {
+        const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站缺考紀錄...</p>';
+
+        try {
+            const todayStr = getFormattedDate(new Date());
+            
+            // 1. 取得所有雲端已發布的考試日期 (僅計當天及以前)
+            const examsSnap = await getDocs(collection(db, "exams"));
+            let examDates = [];
+            examsSnap.forEach(doc => {
+                if (doc.id <= todayStr) {
+                    examDates.push(doc.id);
+                }
+            });
+
+            examDates.sort((a, b) => b.localeCompare(a)); // 新到舊
+
+            if (examDates.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">目前尚無已發布的歷史考試。</p>';
+                return;
+            }
+
+            // 2. 取得所有測驗紀錄，建立已測驗學生地圖
+            const recordsSnap = await getDocs(collection(db, "records"));
+            let submittedMap = {}; // key: dateStr, value: Set(studentNames)
+
+            recordsSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.date && data.studentName) {
+                    if (!submittedMap[data.date]) {
+                        submittedMap[data.date] = new Set();
+                    }
+                    submittedMap[data.date].add(data.studentName.trim().toLowerCase());
+                }
+            });
+
+            // 3. 比對缺考學生
+            let studentAbsentMap = {};
+
+            defaultStudentNames.forEach(rawName => {
+                const normalizedName = rawName.trim().toLowerCase();
+                
+                examDates.forEach(dateStr => {
+                    const submittedSet = submittedMap[dateStr] || new Set();
+                    if (!submittedSet.has(normalizedName)) {
+                        if (!studentAbsentMap[rawName]) {
+                            studentAbsentMap[rawName] = [];
+                        }
+                        studentAbsentMap[rawName].push(dateStr);
+                    }
+                });
+            });
+
+            // 4. 排序與轉為陣列 (按缺考天數多到少排序)
+            let absentList = Object.keys(studentAbsentMap).map(name => {
+                return {
+                    name: name,
+                    dates: studentAbsentMap[name],
+                    count: studentAbsentMap[name].length
+                };
+            }).filter(item => item.count > 0)
+              .sort((a, b) => b.count - a.count);
+
+            renderAbsentStudentsUI(absentList, examDates.length);
+        } catch (error) {
+            console.error("Absent List Error:", error);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入缺考名單失敗，請重試。</p>';
+        }
+    }
+
+    function renderAbsentStudentsUI(absentList, totalExamsCount) {
+        const container = document.getElementById('records-list');
+
+        let tableHtml = `
+            <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+                <h3 style="color:var(--purple-color); margin-bottom:12px; font-size:1.15rem;">🚫 學生缺考紀錄追蹤名單 (歷來考試次數：${totalExamsCount} 次)</h3>
+                <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:#f3e8ff; border-bottom:2px solid #d8b4fe; color:#6b21a8;">
+                            <th style="padding:10px; text-align:left;">學生姓名</th>
+                            <th style="padding:10px;">缺考天數</th>
+                            <th style="padding:10px;">詳細資料</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (absentList.length === 0) {
+            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！所有學生均已完成迄今為止的所有考試。</td></tr>`;
+        } else {
+            absentList.forEach((row, idx) => {
+                const detailId = `absent-detail-${idx}`;
+                
+                let detailsListHtml = row.dates.map(d => `
+                    <div style="display:inline-block; padding:6px 12px; background:#fff; border:1px solid #e9d5ff; border-radius:6px; margin:4px; font-size:0.88rem; color:#6b21a8; font-weight:600;">
+                        📅 ${d}
+                    </div>
+                `).join('');
+
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
+                        <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
+                            ${row.count} 天
+                        </td>
+                        <td style="padding:12px;">
+                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 查看缺考日期</button>
+                        </td>
+                    </tr>
+                    <tr id="${detailId}" class="hidden" style="background:#faf5ff;">
+                        <td colspan="3" style="padding:12px; text-align:left;">
+                            <div style="font-weight:700; color:#6b21a8; margin-bottom:8px;">📌 缺考日期詳細清單：</div>
+                            ${detailsListHtml}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
+    }
+
     // 計算本週總排名
     async function calculateWeeklyLeaderboard() {
         const { startStr, endStr } = getWeekRange(selectedDateStr);
         await calculateRangeLeaderboard(startStr, endStr, `本週學生總得分排行榜 (${startStr} ~ ${endStr})`);
     }
 
-    // 計算自訂範圍總排名
-    async function calculateCustomRangeLeaderboard() {
-        const defaultStart = selectedDateStr;
-        const defaultEnd = selectedDateStr;
+    // 開啟/關閉自訂範圍萬年曆 Modal
+    function openCustomRangeModal() {
+        const startDateInput = document.getElementById('custom-start-date');
+        const endDateInput = document.getElementById('custom-end-date');
+        
+        startDateInput.value = selectedDateStr;
+        endDateInput.value = selectedDateStr;
 
-        const startStr = prompt("請輸入自訂範圍【開始日期】(格式：YYYY-MM-DD)：", defaultStart);
-        if (!startStr) return;
+        document.getElementById('modal-date-range').classList.remove('hidden');
+    }
 
-        const endStr = prompt("請輸入自訂範圍【結束日期】(格式：YYYY-MM-DD)：", defaultEnd);
-        if (!endStr) return;
+    function closeCustomRangeModal() {
+        document.getElementById('modal-date-range').classList.add('hidden');
+    }
 
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(startStr.trim()) || !dateRegex.test(endStr.trim())) {
-            alert("❌ 日期格式不正確，請使用 YYYY-MM-DD 格式（例如：2026-03-01）。");
+    // 提交萬年曆選擇的自訂範圍排名
+    async function submitCustomRangeLeaderboard() {
+        const startStr = document.getElementById('custom-start-date').value;
+        const endStr = document.getElementById('custom-end-date').value;
+
+        if (!startStr || !endStr) {
+            alert("❌ 請完整選擇【起始日期】與【結束日期】！");
             return;
         }
 
-        await calculateRangeLeaderboard(startStr.trim(), endStr.trim(), `自訂範圍學生總得分排行榜 (${startStr.trim()} ~ ${endStr.trim()})`);
+        if (startStr > endStr) {
+            alert("❌【起始日期】不能晚於【結束日期】，請重新選擇！");
+            return;
+        }
+
+        closeCustomRangeModal();
+        await calculateRangeLeaderboard(startStr, endStr, `自訂範圍學生總得分排行榜 (${startStr} ~ ${endStr})`);
     }
 
     // 通用區間排名計算核心
@@ -1392,8 +1656,11 @@
     window.deleteExamForSelectedDate = deleteExamForSelectedDate;
     window.loadAdminStudentRecords = loadAdminStudentRecords;
     window.calculateWeeklyLeaderboard = calculateWeeklyLeaderboard;
-    window.calculateCustomRangeLeaderboard = calculateCustomRangeLeaderboard;
+    window.openCustomRangeModal = openCustomRangeModal;
+    window.closeCustomRangeModal = closeCustomRangeModal;
+    window.submitCustomRangeLeaderboard = submitCustomRangeLeaderboard;
     window.calculateUncorrectedStudents = calculateUncorrectedStudents;
+    window.calculateAbsentStudents = calculateAbsentStudents;
     window.toggleDetails = toggleDetails;
     window.confirmAndNext = confirmAndNext;
 </script>
