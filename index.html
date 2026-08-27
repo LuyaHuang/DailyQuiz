@@ -230,7 +230,6 @@
             transition: all 0.3s ease;
         }
 
-        /* 大題標題藍綠輪播樣式 */
         .banner-blue {
             background-color: #eff6ff;
             border-left: 6px solid #2563eb;
@@ -243,7 +242,6 @@
             color: #14532d;
         }
 
-        /* 大題切換閃爍 3 下動畫 */
         @keyframes flash-banner-effect {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.2; transform: scale(0.995); }
@@ -284,12 +282,12 @@
             cursor: pointer; transition: background-color 0.2s;
         }
         .btn:hover { background-color: var(--primary-hover); }
-        .btn-inline { display: inline-block; width: auto; padding: 8px 18px; font-size: 1rem; }
+        .btn-inline { display: inline-block; width: auto; padding: 8px 18px; font-size: 0.95rem; }
         .btn-danger { background-color: var(--danger-color); }
         .btn-danger:hover { background-color: #b91c1c; }
         .btn-warning { background-color: var(--warning-color); }
         .btn-warning:hover { background-color: #b45309; }
-        .btn-secondary { background-color: #64748b; font-size: 0.85rem; padding: 6px 12px; }
+        .btn-secondary { background-color: #64748b; }
         .btn-secondary:hover { background-color: #475569; }
 
         .score-display {
@@ -381,14 +379,22 @@
             <button id="btn-delete-exam" class="btn btn-inline btn-danger hidden" onclick="deleteExamForSelectedDate()" style="margin-top: 10px;">Delete Exam For This Date</button>
         </div>
 
-        <!-- Admin View Student Exam Records, Uncorrected List & Weekly Leaderboard -->
+        <!-- Admin View Student Exam Records, Uncorrected List & Leaderboards -->
         <div class="records-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
-                <h3 style="color: var(--text-main); font-size: 1.15rem;">📊 學生考試與成績分析</h3>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn btn-inline btn-secondary" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
-                    <button class="btn btn-inline btn-danger" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
-                    <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
+                <!-- 依需求分第一排與第二排 -->
+                <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                    <!-- 第一排按鈕 -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
+                        <button class="btn btn-inline btn-warning" onclick="calculateCustomRangeLeaderboard()">🗓️ 檢視自訂範圍的排名</button>
+                    </div>
+                    <!-- 第二排按鈕 -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-inline btn-danger" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
+                        <button class="btn btn-inline btn-secondary" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
+                    </div>
                 </div>
             </div>
             <div id="records-list"></div>
@@ -544,7 +550,7 @@
     let currentIndex = 0;
     let userAnswers = {};
     let isCorrectionMode = false;
-    let lastSectionType = null; // 用於追蹤大題切換與觸發閃爍
+    let lastSectionType = null;
 
     function getFormattedDate(d = new Date()) {
         let year = d.getFullYear();
@@ -583,7 +589,6 @@
         currentCalDate = new Date();
         selectedDateStr = getFormattedDate(new Date());
 
-        // 僅允許輸入完整 Administrator 方可進入管理介面
         if (normalizedInput === 'administrator') {
             isAdmin = true;
             currentUser = "Administrator";
@@ -920,10 +925,34 @@
 
     // 計算本週總排名
     async function calculateWeeklyLeaderboard() {
-        const container = document.getElementById('records-list');
-        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算本週排名資料...</p>';
-
         const { startStr, endStr } = getWeekRange(selectedDateStr);
+        await calculateRangeLeaderboard(startStr, endStr, `本週學生總得分排行榜 (${startStr} ~ ${endStr})`);
+    }
+
+    // 計算自訂範圍總排名
+    async function calculateCustomRangeLeaderboard() {
+        const defaultStart = selectedDateStr;
+        const defaultEnd = selectedDateStr;
+
+        const startStr = prompt("請輸入自訂範圍【開始日期】(格式：YYYY-MM-DD)：", defaultStart);
+        if (!startStr) return;
+
+        const endStr = prompt("請輸入自訂範圍【結束日期】(格式：YYYY-MM-DD)：", defaultEnd);
+        if (!endStr) return;
+
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(startStr.trim()) || !dateRegex.test(endStr.trim())) {
+            alert("❌ 日期格式不正確，請使用 YYYY-MM-DD 格式（例如：2026-03-01）。");
+            return;
+        }
+
+        await calculateRangeLeaderboard(startStr.trim(), endStr.trim(), `自訂範圍學生總得分排行榜 (${startStr.trim()} ~ ${endStr.trim()})`);
+    }
+
+    // 通用區間排名計算核心
+    async function calculateRangeLeaderboard(startStr, endStr, titleText) {
+        const container = document.getElementById('records-list');
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算 ${startStr} 至 ${endStr} 排名資料...</p>`;
 
         try {
             const querySnapshot = await getDocs(collection(db, "records"));
@@ -959,33 +988,33 @@
                 };
             });
 
-            renderWeeklyLeaderboardUI(startStr, endStr, leaderboard);
+            renderRangeLeaderboardUI(startStr, endStr, leaderboard, titleText);
         } catch (error) {
             console.error("Leaderboard Error:", error);
             container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入排行榜失敗，請重新再試。</p>';
         }
     }
 
-    function renderWeeklyLeaderboardUI(startStr, endStr, leaderboard) {
+    function renderRangeLeaderboardUI(startStr, endStr, leaderboard, titleText) {
         const container = document.getElementById('records-list');
         
         let tableHtml = `
             <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
-                <h3 style="color:var(--primary-color); margin-bottom:12px; font-size:1.15rem;">🏆 本週學生總得分排行榜 (${startStr} ~ ${endStr})</h3>
+                <h3 style="color:var(--primary-color); margin-bottom:12px; font-size:1.15rem;">🏆 ${titleText}</h3>
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:var(--text-muted);">
                             <th style="padding:10px;">名次</th>
                             <th style="padding:10px; text-align:left;">學生姓名</th>
                             <th style="padding:10px;">測驗天數</th>
-                            <th style="padding:10px;">當週累計總分</th>
+                            <th style="padding:10px;">當期累計總分</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         if (leaderboard.length === 0) {
-            tableHtml += `<tr><td colspan="4" style="padding:16px; color:#64748b;">本週 (${startStr} ~ ${endStr}) 尚無學生完成考試。</td></tr>`;
+            tableHtml += `<tr><td colspan="4" style="padding:16px; color:#64748b;">該區間 (${startStr} ~ ${endStr}) 尚無學生完成考試。</td></tr>`;
         } else {
             leaderboard.forEach(row => {
                 let badge = row.rank === 1 ? '🥇 1' : row.rank === 2 ? '🥈 2' : row.rank === 3 ? '🥉 3' : row.rank;
@@ -1114,7 +1143,7 @@
 
         currentIndex = 0;
         userAnswers = {};
-        lastSectionType = null; // 重置大題標籤狀態
+        lastSectionType = null;
 
         document.getElementById('screen-student-select').classList.add('hidden');
         document.getElementById('screen-exam').classList.remove('hidden');
@@ -1154,7 +1183,6 @@
     function renderQuestion() {
         let q = questions[currentIndex];
 
-        // 動態計算大題類型索引，實現藍/綠色彩輪播
         const uniqueTypes = [...new Set(questions.map(item => item.type))];
         const typeIndex = uniqueTypes.indexOf(q.type);
 
@@ -1168,10 +1196,9 @@
             bannerEl.classList.add('banner-green');
         }
 
-        // 當切換到新大題時觸發閃爍 3 下提醒
         if (lastSectionType !== q.type) {
             bannerEl.classList.remove('banner-flash');
-            void bannerEl.offsetWidth; // 強制重繪 (Trigger Reflow)
+            void bannerEl.offsetWidth;
             bannerEl.classList.add('banner-flash');
             lastSectionType = q.type;
         }
@@ -1365,6 +1392,7 @@
     window.deleteExamForSelectedDate = deleteExamForSelectedDate;
     window.loadAdminStudentRecords = loadAdminStudentRecords;
     window.calculateWeeklyLeaderboard = calculateWeeklyLeaderboard;
+    window.calculateCustomRangeLeaderboard = calculateCustomRangeLeaderboard;
     window.calculateUncorrectedStudents = calculateUncorrectedStudents;
     window.toggleDetails = toggleDetails;
     window.confirmAndNext = confirmAndNext;
