@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Examination System</title>
+    <title>Online Examination System (Firebase Edition)</title>
     <!-- SheetJS CDN for parsing Excel files -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -57,7 +57,6 @@
         .header-text h1 { color: var(--primary-color); font-size: 1.7rem; line-height: 1.2; margin-bottom: 4px; }
         .subtitle { color: var(--text-muted); font-size: 0.9rem; }
 
-        /* 放大並突顯學生姓名，方便監考老師查看 */
         .user-badge {
             background-color: #e0e7ff;
             color: var(--primary-color);
@@ -132,7 +131,7 @@
         .status-msg.success { color: var(--success-color); }
         .status-msg.warning { color: var(--warning-color); }
 
-        /* Compact Calendar Component */
+        /* Calendar Component */
         .calendar-card {
             background: #fff;
             border: 1px solid var(--border-color);
@@ -220,7 +219,7 @@
             background-color: #ffffff;
         }
 
-        /* Question & Results Styling - 放大字體供考生清楚閱讀 */
+        /* Question & Results Styling */
         .section-def-banner {
             background-color: #f1f5f9;
             border-left: 5px solid var(--primary-color);
@@ -316,7 +315,7 @@
         <img src="LUYA_LOGO.jpg" alt="LUYA Academy Logo" class="brand-logo" onerror="this.onerror=null; this.src='LUYA_LOGO.png';">
         <div class="header-text">
             <h1>Online Examination System</h1>
-            <div class="subtitle">Automated Testing & Scoring Portal</div>
+            <div class="subtitle">Cloud Testing & Automated Scoring Portal</div>
             <div id="user-display" class="user-badge hidden">
                 <span id="user-role-icon">👤</span> <span id="user-role-label">Student</span>: <span id="current-user-name"></span>
             </div>
@@ -349,7 +348,7 @@
 
         <div class="card-box">
             <h3>Target Date: <span id="admin-target-date" style="color: var(--primary-color);">YYYY-MM-DD</span></h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">Upload `ExamSP.xlsx` file. It will automatically save for today/selected date.</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">Upload Excel file. It will automatically upload to Firebase cloud for the selected date.</p>
             
             <div id="admin-status-info" class="status-msg" style="margin: 10px 0;"></div>
 
@@ -387,7 +386,7 @@
         </div>
     </div>
 
-    <!-- Step 2: Testing View (Exam Page) -->
+    <!-- Step 2: Testing View -->
     <div id="screen-exam" class="hidden">
         <div id="def-banner" class="section-def-banner"></div>
         <div class="question-stem">
@@ -413,7 +412,81 @@
     </div>
 </div>
 
-<script>
+<!-- Firebase & System Application Module -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Firebase 專案設定
+    const firebaseConfig = {
+        apiKey: "AIzaSyBdd8DazL2gqhsR9677CTh8tU0f2vB_oRI",
+        authDomain: "dailyquiz-e3173.firebaseapp.com",
+        projectId: "dailyquiz-e3173",
+        storageBucket: "dailyquiz-e3173.firebasestorage.app",
+        messagingSenderId: "726487717837",
+        appId: "1:726487717837:web:ba9e8db5da55001b3ad684",
+        measurementId: "G-WT79LBEY2T"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Firebase Firestore API
+    async function saveExamToCloud(dateStr, examData) {
+        try {
+            await setDoc(doc(db, "exams", dateStr), examData);
+            alert(`✅ 考題已成功發布至 Firebase 雲端資料庫 (${dateStr})！`);
+        } catch (error) {
+            console.error("Cloud Save Exam Error:", error);
+            alert("❌ 儲存失敗！請確認 Firebase 規則已設定開放。");
+        }
+    }
+
+    async function getExamFromCloud(dateStr) {
+        try {
+            const docRef = doc(db, "exams", dateStr);
+            const docSnap = await getDoc(docRef);
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (error) {
+            console.error("Cloud Get Exam Error:", error);
+            return null;
+        }
+    }
+
+    async function deleteExamFromCloud(dateStr) {
+        try {
+            await deleteDoc(doc(db, "exams", dateStr));
+            alert(`✅ 已成功刪除 ${dateStr} 的雲端考題。`);
+        } catch (error) {
+            console.error("Cloud Delete Exam Error:", error);
+        }
+    }
+
+    async function saveResultToCloud(dateStr, studentName, recordData) {
+        try {
+            const recordId = `${dateStr}_${studentName.replace(/\s+/g, '')}`;
+            await setDoc(doc(db, "records", recordId), recordData);
+        } catch (error) {
+            console.error("Cloud Save Result Error:", error);
+        }
+    }
+
+    async function getResultsFromCloud(dateStr) {
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            let results = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.date === dateStr) results.push(data);
+            });
+            return results;
+        } catch (error) {
+            console.error("Cloud Get Results Error:", error);
+            return [];
+        }
+    }
+
+    // 全域變數定義
     const defaultStudentNames = [
         "Jason Tsai", "Janice Liang", "Naomi Chang", "Chloe Chang", "Kyle Chang",
         "Rapunzel Fu", "Amanda Lin", "Timmy Chen", "Mia Chen", "Harvey Chen",
@@ -433,12 +506,9 @@
 
     let currentUser = "";
     let isAdmin = false;
-
-    // 日曆控制變數
     let currentCalDate = new Date();
     let selectedDateStr = getFormattedDate(new Date());
 
-    // 考試狀態變數
     let currentExamData = null;
     let sectionDefs = {};
     let questions = [];
@@ -453,8 +523,7 @@
         return `${year}-${month}-${day}`;
     }
 
-    // 登入驗證
-    function verifyLogin() {
+    async function verifyLogin() {
         const loginError = document.getElementById('login-error');
         loginError.innerText = "";
 
@@ -465,7 +534,6 @@
         }
 
         const normalizedInput = inputVal.toLowerCase().replace(/\s+/g, ' ');
-
         currentCalDate = new Date();
         selectedDateStr = getFormattedDate(new Date());
 
@@ -482,7 +550,7 @@
             document.getElementById('screen-login').classList.add('hidden');
             document.getElementById('screen-admin').classList.remove('hidden');
             
-            renderCalendar();
+            await renderCalendar();
             return;
         }
 
@@ -502,13 +570,13 @@
             document.getElementById('screen-login').classList.add('hidden');
             document.getElementById('screen-student-select').classList.remove('hidden');
 
-            renderCalendar();
+            await renderCalendar();
         } else {
             loginError.innerText = "❌ User not recognized. Use 'admin' for Admin portal.";
         }
     }
 
-    function renderCalendar() {
+    async function renderCalendar() {
         const year = currentCalDate.getFullYear();
         const month = currentCalDate.getMonth();
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -537,6 +605,28 @@
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const todayStr = getFormattedDate(new Date());
 
+        let examDates = new Set();
+        let uncorrectedDates = new Set();
+
+        try {
+            const examsSnap = await getDocs(collection(db, "exams"));
+            examsSnap.forEach(d => examDates.add(d.id));
+
+            if (!isAdmin) {
+                const recordsSnap = await getDocs(collection(db, "records"));
+                recordsSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.studentName && data.studentName.toLowerCase() === currentUser.toLowerCase()) {
+                        if (data.details && data.details.some(item => !item.isCorrect)) {
+                            uncorrectedDates.add(data.date);
+                        }
+                    }
+                });
+            }
+        } catch(err) {
+            console.error("Error loading metadata:", err);
+        }
+
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.className = 'cal-day empty';
@@ -548,19 +638,7 @@
             const dayCell = document.createElement('div');
             dayCell.className = 'cal-day';
 
-            // 檢查學生是否該日有答錯且未訂正的題目
-            let isUncorrected = false;
-            if (!isAdmin) {
-                const recordsKey = `exam_results_${cellDateStr}`;
-                const existingRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
-                const studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
-                if (studentRecord && studentRecord.details && studentRecord.details.some(d => !d.isCorrect)) {
-                    isUncorrected = true;
-                }
-            }
-
-            // 若有未訂正錯題，在日期數字前面標註紅色叉叉 ❌
-            if (isUncorrected) {
+            if (!isAdmin && uncorrectedDates.has(cellDateStr)) {
                 dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right: 2px;">❌</span><span>${day}</span>`;
             } else {
                 dayCell.innerText = day;
@@ -569,41 +647,43 @@
             if (cellDateStr === todayStr) dayCell.classList.add('today');
             if (cellDateStr === selectedDateStr) dayCell.classList.add('selected');
 
-            if (localStorage.getItem(`exam_${cellDateStr}`)) {
+            if (examDates.has(cellDateStr)) {
                 const dot = document.createElement('div');
                 dot.className = 'has-exam-dot';
                 dayCell.appendChild(dot);
             }
 
-            dayCell.onclick = () => {
+            dayCell.onclick = async () => {
                 selectedDateStr = cellDateStr;
-                renderCalendar();
+                await renderCalendar();
             };
 
             grid.appendChild(dayCell);
         }
 
         if (isAdmin) {
-            checkAdminDateExam();
-            loadAdminStudentRecords();
+            await checkAdminDateExam();
+            await loadAdminStudentRecords();
         } else {
-            checkStudentDateExam();
+            await checkStudentDateExam();
         }
     }
 
-    function changeMonth(offset) {
+    async function changeMonth(offset) {
         currentCalDate.setMonth(currentCalDate.getMonth() + offset);
-        renderCalendar();
+        await renderCalendar();
     }
 
-    function checkAdminDateExam() {
+    async function checkAdminDateExam() {
         const info = document.getElementById('admin-status-info');
         const delBtn = document.getElementById('btn-delete-exam');
-        const examData = localStorage.getItem(`exam_${selectedDateStr}`);
+        info.innerText = "⏳ Connecting to Cloud Database...";
+
+        const examData = await getExamFromCloud(selectedDateStr);
 
         if (examData) {
             info.className = "status-msg success";
-            info.innerText = `✅ Exam stored for ${selectedDateStr}.`;
+            info.innerText = `✅ Exam stored in Cloud for ${selectedDateStr}.`;
             delBtn.classList.remove('hidden');
         } else {
             info.className = "status-msg error";
@@ -612,12 +692,12 @@
         }
     }
 
-    function handleAdminUpload(e) {
+    async function handleAdminUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = async function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -630,40 +710,31 @@
                     return;
                 }
 
-                selectedDateStr = getFormattedDate(new Date());
-                currentCalDate = new Date();
-
-                localStorage.setItem(`exam_${selectedDateStr}`, JSON.stringify(parsed));
-                alert(`✅ 已成功將上傳試卷設定為【今天 (${selectedDateStr})】的考試內容！`);
-                
-                renderCalendar();
+                await saveExamToCloud(selectedDateStr, parsed);
+                await renderCalendar();
             } catch (err) {
-                alert('Error parsing Excel file. Please ensure correct format.');
+                alert('Error parsing or uploading file to Cloud.');
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
-    function deleteExamForSelectedDate() {
-        if (confirm(`Are you sure you want to delete the exam for ${selectedDateStr}?`)) {
-            localStorage.removeItem(`exam_${selectedDateStr}`);
-            renderCalendar();
+    async function deleteExamForSelectedDate() {
+        if (confirm(`Are you sure you want to delete the Cloud exam for ${selectedDateStr}?`)) {
+            await deleteExamFromCloud(selectedDateStr);
+            await renderCalendar();
         }
     }
 
-    function loadAdminStudentRecords() {
+    async function loadAdminStudentRecords() {
         document.getElementById('records-date-label').innerText = selectedDateStr;
         const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Loading Cloud Records...</p>';
+
+        const records = await getResultsFromCloud(selectedDateStr);
         container.innerHTML = '';
 
-        const recordsJson = localStorage.getItem(`exam_results_${selectedDateStr}`);
-        if (!recordsJson) {
-            container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">尚無學生於 ${selectedDateStr} 完成考試。</p>`;
-            return;
-        }
-
-        const records = JSON.parse(recordsJson);
-        if (records.length === 0) {
+        if (!records || records.length === 0) {
             container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">尚無學生於 ${selectedDateStr} 完成考試。</p>`;
             return;
         }
@@ -672,7 +743,7 @@
             const recEl = document.createElement('div');
             recEl.className = 'student-record-item';
 
-            let detailsHtml = rec.details.map(d => `
+            let detailsHtml = (rec.details || []).map(d => `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}" style="margin-top: 6px; font-size: 0.85rem;">
                     <div class="res-header">
                         <span>Q${d.id}. ${d.stem}</span>
@@ -703,13 +774,14 @@
         if (el) el.classList.toggle('hidden');
     }
 
-    // 檢查學生考題狀態與訂正檢測
-    function checkStudentDateExam() {
+    async function checkStudentDateExam() {
         const msg = document.getElementById('student-status-msg');
         const startBtn = document.getElementById('btn-start-student-exam');
-        const examDataStr = localStorage.getItem(`exam_${selectedDateStr}`);
+        msg.innerText = "⏳ Syncing with Cloud Database...";
 
-        if (!examDataStr) {
+        const examData = await getExamFromCloud(selectedDateStr);
+
+        if (!examData) {
             msg.className = "status-msg error";
             msg.innerText = (selectedDateStr === getFormattedDate(new Date())) 
                 ? `❌ 今日 (${selectedDateStr}) 尚未發布考題。` 
@@ -718,13 +790,11 @@
             return;
         }
 
-        // 檢查學生是否已有考試紀錄
-        const recordsKey = `exam_results_${selectedDateStr}`;
-        const existingRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
+        const existingRecords = await getResultsFromCloud(selectedDateStr);
         const studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
         if (studentRecord) {
-            const wrongQuestions = studentRecord.details.filter(d => !d.isCorrect);
+            const wrongQuestions = (studentRecord.details || []).filter(d => !d.isCorrect);
             if (wrongQuestions.length === 0) {
                 msg.className = "status-msg success";
                 msg.innerText = `🎉 您於 ${selectedDateStr} 已考過此試卷，且取得滿分 (${studentRecord.score}/${studentRecord.totalPossible})！`;
@@ -760,7 +830,7 @@
         document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
 
         let resultListHtml = '';
-        studentRecord.details.forEach(d => {
+        (studentRecord.details || []).forEach(d => {
             resultListHtml += `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
                     <div class="res-header">
@@ -779,23 +849,22 @@
         document.getElementById('result-list').innerHTML = resultListHtml;
     }
 
-    function startStudentExam(isCorrection = false) {
-        const examDataStr = localStorage.getItem(`exam_${selectedDateStr}`);
-        if (!examDataStr) return;
+    async function startStudentExam(isCorrection = false) {
+        const examData = await getExamFromCloud(selectedDateStr);
+        if (!examData) return;
 
-        currentExamData = JSON.parse(examDataStr);
-        sectionDefs = currentExamData.sectionDefs;
-        const fullQuestions = currentExamData.questions;
+        currentExamData = examData;
+        sectionDefs = currentExamData.sectionDefs || {};
+        const fullQuestions = currentExamData.questions || [];
 
         isCorrectionMode = isCorrection;
 
         if (isCorrectionMode) {
-            const recordsKey = `exam_results_${selectedDateStr}`;
-            const existingRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
+            const existingRecords = await getResultsFromCloud(selectedDateStr);
             const studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
             if (studentRecord) {
-                const wrongIds = studentRecord.details.filter(d => !d.isCorrect).map(d => d.id);
+                const wrongIds = (studentRecord.details || []).filter(d => !d.isCorrect).map(d => d.id);
                 questions = fullQuestions.filter(q => wrongIds.includes(q.id));
             } else {
                 questions = fullQuestions;
@@ -858,7 +927,7 @@
             input.type = 'text';
             input.id = 'input-text-ans';
             input.className = 'text-answer-input';
-            input.placeholder = 'Type your corrected answer here...';
+            input.placeholder = 'Type your answer here...';
             input.value = userAnswers[q.id] || '';
             input.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') confirmAndNext();
@@ -932,12 +1001,11 @@
         }
     }
 
-    function showResults() {
+    async function showResults() {
         document.getElementById('screen-exam').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
 
-        const recordsKey = `exam_results_${selectedDateStr}`;
-        let existingRecords = JSON.parse(localStorage.getItem(recordsKey) || '[]');
+        const existingRecords = await getResultsFromCloud(selectedDateStr);
         let studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
         if (!studentRecord) {
@@ -950,8 +1018,7 @@
             };
         }
 
-        // 訂正模式：僅更新答錯題目的結果
-        if (isCorrectionMode && studentRecord.details.length > 0) {
+        if (isCorrectionMode && studentRecord.details && studentRecord.details.length > 0) {
             questions.forEach(q => {
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
@@ -966,7 +1033,6 @@
                 }
             });
 
-            // 重新計算更新後的總分
             let totalEarned = 0;
             let totalPossible = 0;
             studentRecord.details.forEach(d => {
@@ -977,7 +1043,6 @@
             studentRecord.totalPossible = totalPossible;
 
         } else {
-            // 首次完整作答
             let totalEarned = 0;
             let totalPossible = 0;
             let detailsRecord = [];
@@ -1006,10 +1071,7 @@
             studentRecord.details = detailsRecord;
         }
 
-        // 寫回 localStorage
-        existingRecords = existingRecords.filter(r => r.studentName.toLowerCase() !== currentUser.toLowerCase());
-        existingRecords.push(studentRecord);
-        localStorage.setItem(recordsKey, JSON.stringify(existingRecords));
+        await saveResultToCloud(selectedDateStr, currentUser, studentRecord);
 
         document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${selectedDateStr}) ${isCorrectionMode ? ' - [訂正完成]' : ''}`;
         document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
@@ -1033,6 +1095,14 @@
         });
         document.getElementById('result-list').innerHTML = resultListHtml;
     }
+
+    // 掛載全域事件導出
+    window.verifyLogin = verifyLogin;
+    window.changeMonth = changeMonth;
+    window.handleAdminUpload = handleAdminUpload;
+    window.deleteExamForSelectedDate = deleteExamForSelectedDate;
+    window.toggleDetails = toggleDetails;
+    window.confirmAndNext = confirmAndNext;
 </script>
 </body>
 </html>
