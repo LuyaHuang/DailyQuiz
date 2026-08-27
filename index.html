@@ -243,6 +243,16 @@
             color: #14532d;
         }
 
+        /* 大題切換閃爍 3 下動畫 */
+        @keyframes flash-banner-effect {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.2; transform: scale(0.995); }
+        }
+
+        .banner-flash {
+            animation: flash-banner-effect 0.35s ease-in-out 3;
+        }
+
         .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 20px; }
         .points-tag { color: #0284c7; font-size: 1.1rem; font-weight: 600; margin-left: 8px; }
 
@@ -371,14 +381,14 @@
             <button id="btn-delete-exam" class="btn btn-inline btn-danger hidden" onclick="deleteExamForSelectedDate()" style="margin-top: 10px;">Delete Exam For This Date</button>
         </div>
 
-        <!-- Admin View Student Exam Records, Weekly Leaderboard & Uncorrected List -->
+        <!-- Admin View Student Exam Records, Uncorrected List & Weekly Leaderboard -->
         <div class="records-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
                 <h3 style="color: var(--text-main); font-size: 1.15rem;">📊 學生考試與成績分析</h3>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <button class="btn btn-inline btn-secondary" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
-                    <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
                     <button class="btn btn-inline btn-danger" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
+                    <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
                 </div>
             </div>
             <div id="records-list"></div>
@@ -534,6 +544,7 @@
     let currentIndex = 0;
     let userAnswers = {};
     let isCorrectionMode = false;
+    let lastSectionType = null; // 用於追蹤大題切換與觸發閃爍
 
     function getFormattedDate(d = new Date()) {
         let year = d.getFullYear();
@@ -810,6 +821,103 @@
         });
     }
 
+    // 計算全站所有學生未訂正狀況，含詳細明細
+    async function calculateUncorrectedStudents() {
+        const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            let studentUncorrectedMap = {};
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.studentName && data.details && Array.isArray(data.details)) {
+                    const wrongItems = data.details.filter(d => !d.isCorrect);
+                    if (wrongItems.length > 0) {
+                        const name = data.studentName;
+                        if (!studentUncorrectedMap[name]) {
+                            studentUncorrectedMap[name] = [];
+                        }
+                        studentUncorrectedMap[name].push({
+                            date: data.date,
+                            wrongCount: wrongItems.length,
+                            totalQuestions: data.details.length
+                        });
+                    }
+                }
+            });
+
+            let uncorrectedList = Object.keys(studentUncorrectedMap).map(name => {
+                const records = studentUncorrectedMap[name].sort((a, b) => b.date.localeCompare(a.date));
+                return {
+                    name: name,
+                    records: records,
+                    count: records.length
+                };
+            }).sort((a, b) => b.count - a.count);
+
+            renderUncorrectedStudentsUI(uncorrectedList);
+        } catch (error) {
+            console.error("Uncorrected List Error:", error);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入未訂正名單失敗，請重試。</p>';
+        }
+    }
+
+    function renderUncorrectedStudentsUI(uncorrectedList) {
+        const container = document.getElementById('records-list');
+
+        let tableHtml = `
+            <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+                <h3 style="color:var(--danger-color); margin-bottom:12px; font-size:1.15rem;">❌ 學生未訂正題型追蹤名單</h3>
+                <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:#fef2f2; border-bottom:2px solid #fecaca; color:#991b1b;">
+                            <th style="padding:10px; text-align:left;">學生姓名</th>
+                            <th style="padding:10px;">未訂正天數</th>
+                            <th style="padding:10px;">詳細資料</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (uncorrectedList.length === 0) {
+            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！目前所有學生均已完成所有訂正。</td></tr>`;
+        } else {
+            uncorrectedList.forEach((row, idx) => {
+                const detailId = `uncorrected-detail-${idx}`;
+                
+                let detailsListHtml = row.records.map(r => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#fff; border:1px solid #fee2e2; border-radius:6px; margin-bottom:6px; font-size:0.88rem;">
+                        <span>📅 沒訂正日期：<strong style="color:#0f172a;">${r.date}</strong></span>
+                        <span style="color:var(--danger-color); font-weight:700;">❌ 尚有 ${r.wrongCount} 題錯題待訂正 (共 ${r.totalQuestions} 題)</span>
+                    </div>
+                `).join('');
+
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
+                        <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
+                            ${row.count} 天
+                        </td>
+                        <td style="padding:12px;">
+                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 查看明細</button>
+                        </td>
+                    </tr>
+                    <tr id="${detailId}" class="hidden" style="background:#fff5f5;">
+                        <td colspan="3" style="padding:12px; text-align:left;">
+                            <div style="font-weight:700; color:#991b1b; margin-bottom:8px;">📌 未訂正日期與題數詳細清單：</div>
+                            ${detailsListHtml}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
+    }
+
     // 計算本週總排名
     async function calculateWeeklyLeaderboard() {
         const container = document.getElementById('records-list');
@@ -889,84 +997,6 @@
                         <td style="padding:12px; text-align:left; font-weight:700;">${row.name}</td>
                         <td style="padding:12px;">${row.count} 天</td>
                         <td style="padding:12px; font-weight:800; font-size:1.1rem; color:var(--primary-color);">${row.totalScore} 分</td>
-                    </tr>
-                `;
-            });
-        }
-
-        tableHtml += `</tbody></table></div>`;
-        container.innerHTML = tableHtml;
-    }
-
-    // 計算全站所有學生未訂正狀況
-    async function calculateUncorrectedStudents() {
-        const container = document.getElementById('records-list');
-        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
-
-        try {
-            const querySnapshot = await getDocs(collection(db, "records"));
-            let studentUncorrectedMap = {};
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                if (data.studentName && data.details && Array.isArray(data.details)) {
-                    const hasWrong = data.details.some(d => !d.isCorrect);
-                    if (hasWrong) {
-                        const name = data.studentName;
-                        if (!studentUncorrectedMap[name]) {
-                            studentUncorrectedMap[name] = [];
-                        }
-                        if (!studentUncorrectedMap[name].includes(data.date)) {
-                            studentUncorrectedMap[name].push(data.date);
-                        }
-                    }
-                }
-            });
-
-            let uncorrectedList = Object.keys(studentUncorrectedMap).map(name => ({
-                name: name,
-                dates: studentUncorrectedMap[name].sort().reverse(),
-                count: studentUncorrectedMap[name].length
-            })).sort((a, b) => b.count - a.count);
-
-            renderUncorrectedStudentsUI(uncorrectedList);
-        } catch (error) {
-            console.error("Uncorrected List Error:", error);
-            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入未訂正名單失敗，請重試。</p>';
-        }
-    }
-
-    function renderUncorrectedStudentsUI(uncorrectedList) {
-        const container = document.getElementById('records-list');
-
-        let tableHtml = `
-            <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
-                <h3 style="color:var(--danger-color); margin-bottom:12px; font-size:1.15rem;">❌ 學生未訂正題型追蹤名單</h3>
-                <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
-                    <thead>
-                        <tr style="background:#fef2f2; border-bottom:2px solid #fecaca; color:#991b1b;">
-                            <th style="padding:10px; text-align:left;">學生姓名</th>
-                            <th style="padding:10px;">未訂正天數</th>
-                            <th style="padding:10px; text-align:left;">包含日期</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        if (uncorrectedList.length === 0) {
-            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！目前所有學生均已完成所有訂正。</td></tr>`;
-        } else {
-            uncorrectedList.forEach(row => {
-                let datesDisplay = row.dates.join(', ');
-                tableHtml += `
-                    <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
-                        <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
-                            ${row.count} 天
-                        </td>
-                        <td style="padding:12px; text-align:left; color:var(--text-muted); font-size:0.85rem;">
-                            ${datesDisplay}
-                        </td>
                     </tr>
                 `;
             });
@@ -1084,6 +1114,7 @@
 
         currentIndex = 0;
         userAnswers = {};
+        lastSectionType = null; // 重置大題標籤狀態
 
         document.getElementById('screen-student-select').classList.add('hidden');
         document.getElementById('screen-exam').classList.remove('hidden');
@@ -1130,10 +1161,19 @@
         const bannerEl = document.getElementById('def-banner');
         bannerEl.innerText = sectionDefs[q.type] || `Part ${q.type}`;
         bannerEl.className = 'section-def-banner';
+        
         if (typeIndex % 2 === 0) {
             bannerEl.classList.add('banner-blue');
         } else {
             bannerEl.classList.add('banner-green');
+        }
+
+        // 當切換到新大題時觸發閃爍 3 下提醒
+        if (lastSectionType !== q.type) {
+            bannerEl.classList.remove('banner-flash');
+            void bannerEl.offsetWidth; // 強制重繪 (Trigger Reflow)
+            bannerEl.classList.add('banner-flash');
+            lastSectionType = q.type;
         }
 
         document.getElementById('q-number').innerText = isCorrectionMode ? `[訂正題] ${q.id}.` : `${q.id}.`;
