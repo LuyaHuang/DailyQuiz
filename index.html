@@ -97,7 +97,7 @@
 
         .input-text {
             width: 100%;
-            max-width: 340px;
+            max-width: 380px;
             padding: 10px 14px;
             font-size: 1rem;
             border: 2px solid var(--border-color);
@@ -360,7 +360,7 @@
         .btn-secondary { background-color: #64748b; }
         .btn-secondary:hover { background-color: #475569; }
 
-        /* 統一管理員功能按鈕樣式 (固定尺寸 + 置中) */
+        /* 管理員功能按鈕樣式 */
         .admin-action-btn {
             width: 210px;
             height: 44px;
@@ -431,9 +431,9 @@
     <!-- Step 0: Login -->
     <div id="screen-login" class="card-box">
         <h3 style="margin-bottom: 6px;">🔐 System Login</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Enter your student name (case-insensitive).</p>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">e.g., Peter Pan (Full English Name)</p>
         <div>
-            <input type="text" id="input-username" class="input-text" placeholder="Enter student name..." onkeypress="if(event.key==='Enter') verifyLogin()">
+            <input type="text" id="input-username" class="input-text" placeholder="e.g., Peter Pan (Full English Name)" onkeypress="if(event.key==='Enter') verifyLogin()">
         </div>
         <button class="btn btn-inline" onclick="verifyLogin()">Login</button>
         <div id="login-error" class="status-msg error" style="margin-top: 10px;"></div>
@@ -470,19 +470,15 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                 <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
                 
-                <!-- 5個功能按鈕分三行排列 -->
                 <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                    <!-- 第一行按鈕 -->
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                         <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 當週排名</button>
                         <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ 自訂範圍排名</button>
                     </div>
-                    <!-- 第二行按鈕 -->
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                         <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
                         <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 缺考名單</button>
                     </div>
-                    <!-- 第三行按鈕 -->
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                         <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
                     </div>
@@ -578,7 +574,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Firebase Firestore API
     async function saveExamToCloud(dateStr, examData) {
         try {
             await setDoc(doc(db, "exams", dateStr), examData);
@@ -633,7 +628,6 @@
         }
     }
 
-    // 全域變數定義
     const defaultStudentNames = [
         "Jason Tsai", "Janice Liang", "Naomi Chang", "Chloe Chang", "Kyle Chang",
         "Rapunzel Fu", "Amanda Lin", "Timmy Chen", "Mia Chen", "Harvey Chen",
@@ -736,7 +730,7 @@
 
             await renderCalendar();
         } else {
-            loginError.innerText = "❌ User not recognized. Please check your spelling.";
+            loginError.innerText = "❌ Not a Luya student.";
         }
     }
 
@@ -790,7 +784,6 @@
                     }
                 });
 
-                // 計算缺考日期：雲端有考試、日期 <= 今天、且學生尚未考過
                 examDates.forEach(dateStr => {
                     if (dateStr <= todayStr && !submittedDates.has(dateStr)) {
                         absentDates.add(dateStr);
@@ -812,7 +805,6 @@
             const dayCell = document.createElement('div');
             dayCell.className = 'cal-day';
 
-            // 學生視角：優先顯示「未訂正 ❌」，若無未訂正再檢查是否「缺考 ⛔」
             if (!isAdmin && uncorrectedDates.has(cellDateStr)) {
                 dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">❌</span><span>${day}</span>`;
             } else if (!isAdmin && absentDates.has(cellDateStr)) {
@@ -907,7 +899,6 @@
         }
     }
 
-    // 載入當日學生成績紀錄
     async function loadAdminStudentRecords() {
         document.getElementById('records-date-label').innerText = selectedDateStr;
         const container = document.getElementById('records-list');
@@ -951,7 +942,6 @@
         });
     }
 
-    // 計算全站所有學生未訂正狀況
     async function calculateUncorrectedStudents() {
         const container = document.getElementById('records-list');
         container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
@@ -1048,7 +1038,6 @@
         container.innerHTML = tableHtml;
     }
 
-    // 計算全站學生缺考狀況
     async function calculateAbsentStudents() {
         const container = document.getElementById('records-list');
         container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站缺考紀錄...</p>';
@@ -1056,7 +1045,6 @@
         try {
             const todayStr = getFormattedDate(new Date());
             
-            // 1. 取得所有雲端已發布的考試日期 (僅計當天及以前)
             const examsSnap = await getDocs(collection(db, "exams"));
             let examDates = [];
             examsSnap.forEach(doc => {
@@ -1065,16 +1053,15 @@
                 }
             });
 
-            examDates.sort((a, b) => b.localeCompare(a)); // 新到舊
+            examDates.sort((a, b) => b.localeCompare(a));
 
             if (examDates.length === 0) {
                 container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">目前尚無已發布的歷史考試。</p>';
                 return;
             }
 
-            // 2. 取得所有測驗紀錄，建立已測驗學生地圖
             const recordsSnap = await getDocs(collection(db, "records"));
-            let submittedMap = {}; // key: dateStr, value: Set(studentNames)
+            let submittedMap = {};
 
             recordsSnap.forEach(doc => {
                 const data = doc.data();
@@ -1086,7 +1073,6 @@
                 }
             });
 
-            // 3. 比對缺考學生
             let studentAbsentMap = {};
 
             defaultStudentNames.forEach(rawName => {
@@ -1103,7 +1089,6 @@
                 });
             });
 
-            // 4. 排序與轉為陣列 (按缺考天數多到少排序)
             let absentList = Object.keys(studentAbsentMap).map(name => {
                 return {
                     name: name,
@@ -1173,13 +1158,11 @@
         container.innerHTML = tableHtml;
     }
 
-    // 計算本週總排名
     async function calculateWeeklyLeaderboard() {
         const { startStr, endStr } = getWeekRange(selectedDateStr);
         await calculateRangeLeaderboard(startStr, endStr, `本週學生總得分排行榜 (${startStr} ~ ${endStr})`);
     }
 
-    // 開啟/關閉自訂範圍萬年曆 Modal
     function openCustomRangeModal() {
         const startDateInput = document.getElementById('custom-start-date');
         const endDateInput = document.getElementById('custom-end-date');
@@ -1194,7 +1177,6 @@
         document.getElementById('modal-date-range').classList.add('hidden');
     }
 
-    // 提交萬年曆選擇的自訂範圍排名
     async function submitCustomRangeLeaderboard() {
         const startStr = document.getElementById('custom-start-date').value;
         const endStr = document.getElementById('custom-end-date').value;
@@ -1213,7 +1195,6 @@
         await calculateRangeLeaderboard(startStr, endStr, `自訂範圍學生總得分排行榜 (${startStr} ~ ${endStr})`);
     }
 
-    // 通用區間排名計算核心
     async function calculateRangeLeaderboard(startStr, endStr, titleText) {
         const container = document.getElementById('records-list');
         container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算 ${startStr} 至 ${endStr} 排名資料...</p>`;
@@ -1649,7 +1630,6 @@
         document.getElementById('result-list').innerHTML = resultListHtml;
     }
 
-    // 掛載全域事件導出
     window.verifyLogin = verifyLogin;
     window.changeMonth = changeMonth;
     window.handleAdminUpload = handleAdminUpload;
