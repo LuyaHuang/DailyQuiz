@@ -221,14 +221,26 @@
 
         /* Question & Results Styling */
         .section-def-banner {
-            background-color: #f1f5f9;
-            border-left: 5px solid var(--primary-color);
             padding: 14px;
             border-radius: 0 8px 8px 0;
             margin-bottom: 20px;
             font-size: 1.05rem;
             font-weight: 600;
             white-space: pre-line;
+            transition: all 0.3s ease;
+        }
+
+        /* 大題標題藍綠輪播樣式 */
+        .banner-blue {
+            background-color: #eff6ff;
+            border-left: 6px solid #2563eb;
+            color: #1e3a8a;
+        }
+
+        .banner-green {
+            background-color: #f0fdf4;
+            border-left: 6px solid #16a34a;
+            color: #14532d;
         }
 
         .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 20px; }
@@ -325,9 +337,9 @@
     <!-- Step 0: Login -->
     <div id="screen-login" class="card-box">
         <h3 style="margin-bottom: 6px;">🔐 System Login</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Enter student name (case-insensitive), or "admin".</p>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Enter your student name (case-insensitive).</p>
         <div>
-            <input type="text" id="input-username" class="input-text" placeholder="Enter name or admin..." onkeypress="if(event.key==='Enter') verifyLogin()">
+            <input type="text" id="input-username" class="input-text" placeholder="Enter student name..." onkeypress="if(event.key==='Enter') verifyLogin()">
         </div>
         <button class="btn btn-inline" onclick="verifyLogin()">Login</button>
         <div id="login-error" class="status-msg error" style="margin-top: 10px;"></div>
@@ -552,7 +564,7 @@
 
         const inputVal = document.getElementById('input-username').value.trim();
         if (!inputVal) {
-            loginError.innerText = "Please enter your name or admin.";
+            loginError.innerText = "Please enter your student name.";
             return;
         }
 
@@ -560,7 +572,8 @@
         currentCalDate = new Date();
         selectedDateStr = getFormattedDate(new Date());
 
-        if (normalizedInput === 'admin' || normalizedInput === 'administrator') {
+        // 僅允許輸入完整 Administrator 方可進入管理介面
+        if (normalizedInput === 'administrator') {
             isAdmin = true;
             currentUser = "Administrator";
             
@@ -595,7 +608,7 @@
 
             await renderCalendar();
         } else {
-            loginError.innerText = "❌ User not recognized. Use 'admin' for Admin portal.";
+            loginError.innerText = "❌ User not recognized. Please check your spelling.";
         }
     }
 
@@ -797,7 +810,7 @@
         });
     }
 
-    // 計算本週總排名 (由第 1 名遞增排列)
+    // 計算本週總排名
     async function calculateWeeklyLeaderboard() {
         const container = document.getElementById('records-list');
         container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算本週排名資料...</p>';
@@ -845,7 +858,6 @@
         }
     }
 
-    // 渲染本週總排名表格 UI
     function renderWeeklyLeaderboardUI(startStr, endStr, leaderboard) {
         const container = document.getElementById('records-list');
         
@@ -886,7 +898,7 @@
         container.innerHTML = tableHtml;
     }
 
-    // 計算全站所有學生未訂正的狀況與天數
+    // 計算全站所有學生未訂正狀況
     async function calculateUncorrectedStudents() {
         const container = document.getElementById('records-list');
         container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
@@ -898,7 +910,6 @@
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 if (data.studentName && data.details && Array.isArray(data.details)) {
-                    // 判斷該次考試是否有錯題未訂正
                     const hasWrong = data.details.some(d => !d.isCorrect);
                     if (hasWrong) {
                         const name = data.studentName;
@@ -912,7 +923,6 @@
                 }
             });
 
-            // 轉換為陣列並按未訂正天數由多到少排序
             let uncorrectedList = Object.keys(studentUncorrectedMap).map(name => ({
                 name: name,
                 dates: studentUncorrectedMap[name].sort().reverse(),
@@ -926,7 +936,6 @@
         }
     }
 
-    // 渲染未訂正學生名單 UI
     function renderUncorrectedStudentsUI(uncorrectedList) {
         const container = document.getElementById('records-list');
 
@@ -1114,7 +1123,19 @@
     function renderQuestion() {
         let q = questions[currentIndex];
 
-        document.getElementById('def-banner').innerText = sectionDefs[q.type] || `Part ${q.type}`;
+        // 動態計算大題類型索引，實現藍/綠色彩輪播
+        const uniqueTypes = [...new Set(questions.map(item => item.type))];
+        const typeIndex = uniqueTypes.indexOf(q.type);
+
+        const bannerEl = document.getElementById('def-banner');
+        bannerEl.innerText = sectionDefs[q.type] || `Part ${q.type}`;
+        bannerEl.className = 'section-def-banner';
+        if (typeIndex % 2 === 0) {
+            bannerEl.classList.add('banner-blue');
+        } else {
+            bannerEl.classList.add('banner-green');
+        }
+
         document.getElementById('q-number').innerText = isCorrectionMode ? `[訂正題] ${q.id}.` : `${q.id}.`;
         document.getElementById('q-stem').innerText = q.stem;
         document.getElementById('q-points').innerText = `(Points: ${q.points})`;
