@@ -262,7 +262,7 @@
             cursor: pointer; transition: background-color 0.2s;
         }
         .btn:hover { background-color: var(--primary-hover); }
-        .btn-inline { display: inline-block; width: auto; padding: 8px 20px; font-size: 1rem; }
+        .btn-inline { display: inline-block; width: auto; padding: 8px 18px; font-size: 1rem; }
         .btn-danger { background-color: var(--danger-color); }
         .btn-danger:hover { background-color: #b91c1c; }
         .btn-warning { background-color: var(--warning-color); }
@@ -359,9 +359,16 @@
             <button id="btn-delete-exam" class="btn btn-inline btn-danger hidden" onclick="deleteExamForSelectedDate()" style="margin-top: 10px;">Delete Exam For This Date</button>
         </div>
 
-        <!-- Admin View Student Exam Records -->
+        <!-- Admin View Student Exam Records, Weekly Leaderboard & Uncorrected List -->
         <div class="records-section">
-            <h3 style="margin-bottom: 10px; color: var(--text-main);">📊 Student Exam Results (<span id="records-date-label"></span>)</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="color: var(--text-main); font-size: 1.15rem;">📊 學生考試與成績分析</h3>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-inline btn-secondary" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
+                    <button class="btn btn-inline btn-warning" onclick="calculateWeeklyLeaderboard()">🏆 檢視本週總排名</button>
+                    <button class="btn btn-inline btn-danger" onclick="calculateUncorrectedStudents()">❌ 未訂正名單</button>
+                </div>
+            </div>
             <div id="records-list"></div>
         </div>
     </div>
@@ -516,11 +523,27 @@
     let userAnswers = {};
     let isCorrectionMode = false;
 
-    function getFormattedDate(d) {
+    function getFormattedDate(d = new Date()) {
         let year = d.getFullYear();
         let month = String(d.getMonth() + 1).padStart(2, '0');
         let day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    function getWeekRange(targetDateStr) {
+        const parts = targetDateStr.split('-').map(Number);
+        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const day = dateObj.getDay(); 
+        const diffToMon = dateObj.getDate() - (day === 0 ? 6 : day - 1);
+
+        const monday = new Date(parts[0], parts[1] - 1, diffToMon);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        return {
+            startStr: getFormattedDate(monday),
+            endStr: getFormattedDate(sunday)
+        };
     }
 
     async function verifyLogin() {
@@ -696,6 +719,8 @@
         const file = e.target.files[0];
         if (!file) return;
 
+        const uploadDate = selectedDateStr || getFormattedDate(new Date());
+
         const reader = new FileReader();
         reader.onload = async function(evt) {
             try {
@@ -705,15 +730,17 @@
                 const rawData = XLSX.utils.sheet_to_json(worksheet);
 
                 const parsed = parseExamData(rawData);
-                if (parsed.questions.length === 0) {
-                    alert('No valid questions found in the file!');
+                if (!parsed.questions || parsed.questions.length === 0) {
+                    alert('❌ No valid questions found in the file!');
                     return;
                 }
 
-                await saveExamToCloud(selectedDateStr, parsed);
+                await saveExamToCloud(uploadDate, parsed);
+                e.target.value = '';
                 await renderCalendar();
             } catch (err) {
-                alert('Error parsing or uploading file to Cloud.');
+                console.error("Upload error:", err);
+                alert('❌ Error parsing or uploading file to Cloud.');
             }
         };
         reader.readAsArrayBuffer(file);
@@ -726,6 +753,7 @@
         }
     }
 
+    // 載入當日學生成績紀錄
     async function loadAdminStudentRecords() {
         document.getElementById('records-date-label').innerText = selectedDateStr;
         const container = document.getElementById('records-list');
@@ -769,6 +797,176 @@
         });
     }
 
+    // 計算本週總排名 (由第 1 名遞增排列)
+    async function calculateWeeklyLeaderboard() {
+        const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算本週排名資料...</p>';
+
+        const { startStr, endStr } = getWeekRange(selectedDateStr);
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            let studentScores = {};
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.date >= startStr && data.date <= endStr) {
+                    const name = data.studentName;
+                    const score = Number(data.score) || 0;
+
+                    if (!studentScores[name]) {
+                        studentScores[name] = { totalScore: 0, count: 0 };
+                    }
+                    studentScores[name].totalScore += score;
+                    studentScores[name].count += 1;
+                }
+            });
+
+            let sortedList = Object.keys(studentScores).map(name => ({
+                name: name,
+                totalScore: studentScores[name].totalScore,
+                count: studentScores[name].count
+            })).sort((a, b) => b.totalScore - a.totalScore);
+
+            let currentRank = 1;
+            let leaderboard = sortedList.map((item, index) => {
+                if (index > 0 && item.totalScore < sortedList[index - 1].totalScore) {
+                    currentRank = index + 1;
+                }
+                return {
+                    rank: currentRank, ...item
+                };
+            });
+
+            renderWeeklyLeaderboardUI(startStr, endStr, leaderboard);
+        } catch (error) {
+            console.error("Leaderboard Error:", error);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入排行榜失敗，請重新再試。</p>';
+        }
+    }
+
+    // 渲染本週總排名表格 UI
+    function renderWeeklyLeaderboardUI(startStr, endStr, leaderboard) {
+        const container = document.getElementById('records-list');
+        
+        let tableHtml = `
+            <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+                <h3 style="color:var(--primary-color); margin-bottom:12px; font-size:1.15rem;">🏆 本週學生總得分排行榜 (${startStr} ~ ${endStr})</h3>
+                <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:var(--text-muted);">
+                            <th style="padding:10px;">名次</th>
+                            <th style="padding:10px; text-align:left;">學生姓名</th>
+                            <th style="padding:10px;">測驗天數</th>
+                            <th style="padding:10px;">當週累計總分</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (leaderboard.length === 0) {
+            tableHtml += `<tr><td colspan="4" style="padding:16px; color:#64748b;">本週 (${startStr} ~ ${endStr}) 尚無學生完成考試。</td></tr>`;
+        } else {
+            leaderboard.forEach(row => {
+                let badge = row.rank === 1 ? '🥇 1' : row.rank === 2 ? '🥈 2' : row.rank === 3 ? '🥉 3' : row.rank;
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:12px; font-weight:800; font-size:1.05rem; color:${row.rank <= 3 ? '#d97706' : '#0f172a'};">
+                            ${badge}
+                        </td>
+                        <td style="padding:12px; text-align:left; font-weight:700;">${row.name}</td>
+                        <td style="padding:12px;">${row.count} 天</td>
+                        <td style="padding:12px; font-weight:800; font-size:1.1rem; color:var(--primary-color);">${row.totalScore} 分</td>
+                    </tr>
+                `;
+            });
+        }
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
+    }
+
+    // 計算全站所有學生未訂正的狀況與天數
+    async function calculateUncorrectedStudents() {
+        const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            let studentUncorrectedMap = {};
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.studentName && data.details && Array.isArray(data.details)) {
+                    // 判斷該次考試是否有錯題未訂正
+                    const hasWrong = data.details.some(d => !d.isCorrect);
+                    if (hasWrong) {
+                        const name = data.studentName;
+                        if (!studentUncorrectedMap[name]) {
+                            studentUncorrectedMap[name] = [];
+                        }
+                        if (!studentUncorrectedMap[name].includes(data.date)) {
+                            studentUncorrectedMap[name].push(data.date);
+                        }
+                    }
+                }
+            });
+
+            // 轉換為陣列並按未訂正天數由多到少排序
+            let uncorrectedList = Object.keys(studentUncorrectedMap).map(name => ({
+                name: name,
+                dates: studentUncorrectedMap[name].sort().reverse(),
+                count: studentUncorrectedMap[name].length
+            })).sort((a, b) => b.count - a.count);
+
+            renderUncorrectedStudentsUI(uncorrectedList);
+        } catch (error) {
+            console.error("Uncorrected List Error:", error);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入未訂正名單失敗，請重試。</p>';
+        }
+    }
+
+    // 渲染未訂正學生名單 UI
+    function renderUncorrectedStudentsUI(uncorrectedList) {
+        const container = document.getElementById('records-list');
+
+        let tableHtml = `
+            <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+                <h3 style="color:var(--danger-color); margin-bottom:12px; font-size:1.15rem;">❌ 學生未訂正題型追蹤名單</h3>
+                <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
+                    <thead>
+                        <tr style="background:#fef2f2; border-bottom:2px solid #fecaca; color:#991b1b;">
+                            <th style="padding:10px; text-align:left;">學生姓名</th>
+                            <th style="padding:10px;">未訂正天數</th>
+                            <th style="padding:10px; text-align:left;">包含日期</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (uncorrectedList.length === 0) {
+            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！目前所有學生均已完成所有訂正。</td></tr>`;
+        } else {
+            uncorrectedList.forEach(row => {
+                let datesDisplay = row.dates.join(', ');
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
+                        <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
+                            ${row.count} 天
+                        </td>
+                        <td style="padding:12px; text-align:left; color:var(--text-muted); font-size:0.85rem;">
+                            ${datesDisplay}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
+    }
+
     function toggleDetails(id) {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('hidden');
@@ -779,32 +977,33 @@
         const startBtn = document.getElementById('btn-start-student-exam');
         msg.innerText = "⏳ Syncing with Cloud Database...";
 
-        const examData = await getExamFromCloud(selectedDateStr);
+        const targetDate = selectedDateStr || getFormattedDate(new Date());
+        const examData = await getExamFromCloud(targetDate);
 
         if (!examData) {
             msg.className = "status-msg error";
-            msg.innerText = (selectedDateStr === getFormattedDate(new Date())) 
-                ? `❌ 今日 (${selectedDateStr}) 尚未發布考題。` 
-                : `❌ No exam scheduled for ${selectedDateStr}.`;
+            msg.innerText = (targetDate === getFormattedDate(new Date())) 
+                ? `❌ 今日 (${targetDate}) 尚未發布考題。` 
+                : `❌ No exam scheduled for ${targetDate}.`;
             startBtn.classList.add('hidden');
             return;
         }
 
-        const existingRecords = await getResultsFromCloud(selectedDateStr);
+        const existingRecords = await getResultsFromCloud(targetDate);
         const studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
         if (studentRecord) {
             const wrongQuestions = (studentRecord.details || []).filter(d => !d.isCorrect);
             if (wrongQuestions.length === 0) {
                 msg.className = "status-msg success";
-                msg.innerText = `🎉 您於 ${selectedDateStr} 已考過此試卷，且取得滿分 (${studentRecord.score}/${studentRecord.totalPossible})！`;
+                msg.innerText = `🎉 您於 ${targetDate} 已考過此試卷，且取得滿分 (${studentRecord.score}/${studentRecord.totalPossible})！`;
                 startBtn.className = "btn btn-inline";
                 startBtn.innerText = "🔍 查看答題紀錄";
                 startBtn.onclick = () => viewPreviousResults(studentRecord);
                 startBtn.classList.remove('hidden');
             } else {
                 msg.className = "status-msg warning";
-                msg.innerText = `📝 您於 ${selectedDateStr} 已考過（目前得分：${studentRecord.score}/${studentRecord.totalPossible}），尚有 ${wrongQuestions.length} 題需訂正！`;
+                msg.innerText = `📝 您於 ${targetDate} 已考過（目前得分：${studentRecord.score}/${studentRecord.totalPossible}），尚有 ${wrongQuestions.length} 題需訂正！`;
                 startBtn.className = "btn btn-inline btn-warning";
                 startBtn.innerText = "✍️ 開始訂正錯題";
                 startBtn.onclick = () => startStudentExam(true);
@@ -812,9 +1011,9 @@
             }
         } else {
             msg.className = "status-msg success";
-            msg.innerText = (selectedDateStr === getFormattedDate(new Date())) 
-                ? `✅ 今日考題已準備就緒！ (${selectedDateStr})` 
-                : `✅ Exam available for ${selectedDateStr}!`;
+            msg.innerText = (targetDate === getFormattedDate(new Date())) 
+                ? `✅ 今日考題已準備就緒！ (${targetDate})` 
+                : `✅ Exam available for ${targetDate}!`;
             startBtn.className = "btn";
             startBtn.innerText = "🚀 開始考試";
             startBtn.onclick = () => startStudentExam(false);
@@ -850,7 +1049,8 @@
     }
 
     async function startStudentExam(isCorrection = false) {
-        const examData = await getExamFromCloud(selectedDateStr);
+        const targetDate = selectedDateStr || getFormattedDate(new Date());
+        const examData = await getExamFromCloud(targetDate);
         if (!examData) return;
 
         currentExamData = examData;
@@ -860,7 +1060,7 @@
         isCorrectionMode = isCorrection;
 
         if (isCorrectionMode) {
-            const existingRecords = await getResultsFromCloud(selectedDateStr);
+            const existingRecords = await getResultsFromCloud(targetDate);
             const studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
             if (studentRecord) {
@@ -1005,13 +1205,14 @@
         document.getElementById('screen-exam').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
 
-        const existingRecords = await getResultsFromCloud(selectedDateStr);
+        const targetDate = selectedDateStr || getFormattedDate(new Date());
+        const existingRecords = await getResultsFromCloud(targetDate);
         let studentRecord = existingRecords.find(r => r.studentName.toLowerCase() === currentUser.toLowerCase());
 
         if (!studentRecord) {
             studentRecord = {
                 studentName: currentUser,
-                date: selectedDateStr,
+                date: targetDate,
                 score: 0,
                 totalPossible: 0,
                 details: []
@@ -1071,9 +1272,9 @@
             studentRecord.details = detailsRecord;
         }
 
-        await saveResultToCloud(selectedDateStr, currentUser, studentRecord);
+        await saveResultToCloud(targetDate, currentUser, studentRecord);
 
-        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${selectedDateStr}) ${isCorrectionMode ? ' - [訂正完成]' : ''}`;
+        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${targetDate}) ${isCorrectionMode ? ' - [訂正完成]' : ''}`;
         document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
 
         let resultListHtml = '';
@@ -1101,6 +1302,9 @@
     window.changeMonth = changeMonth;
     window.handleAdminUpload = handleAdminUpload;
     window.deleteExamForSelectedDate = deleteExamForSelectedDate;
+    window.loadAdminStudentRecords = loadAdminStudentRecords;
+    window.calculateWeeklyLeaderboard = calculateWeeklyLeaderboard;
+    window.calculateUncorrectedStudents = calculateUncorrectedStudents;
     window.toggleDetails = toggleDetails;
     window.confirmAndNext = confirmAndNext;
 </script>
