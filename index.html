@@ -477,19 +477,24 @@
         .btn-secondary { background-color: #64748b; box-shadow: 0 4px 12px rgba(100, 116, 139, 0.18); }
         .btn-secondary:hover { background-color: #475569; box-shadow: 0 6px 16px rgba(100, 116, 139, 0.25); }
 
+        /* 自適應高、自動換行且同排拉長之按鈕 */
         .admin-action-btn {
             width: 100%;
-            height: 44px;
+            min-height: 48px;
+            height: auto;
             display: inline-flex !important;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 0 12px;
-            font-size: 0.92rem;
+            padding: 8px 10px;
+            font-size: 0.88rem;
             font-weight: 700;
             box-sizing: border-box;
             border-radius: 8px;
-            line-height: 1.2;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
+            hyphens: auto;
         }
 
         /* 兩排三欄網格佈局 */
@@ -499,6 +504,7 @@
             gap: 10px;
             margin-top: 14px;
             margin-bottom: 20px;
+            align-items: stretch;
         }
 
         .score-display {
@@ -595,18 +601,18 @@
 
         <!-- Admin View Student Exam Records, Uncorrected List & Leaderboards -->
         <div class="records-section">
-            <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 學生考試與成績分析</h3>
+            <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 Student Exam & Performance Analytics</h3>
 
-            <!-- 按鈕重排區塊：每排三個，平均排列於下方 -->
+            <!-- 按鈕重排區塊：英文過長時可自動切兩行，並使同排按鈕同步放大 -->
             <div class="admin-btn-grid">
                 <!-- 第一排 -->
-                <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 當日紀錄 (<span id="records-date-label"></span>)</button>
-                <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 當週排名</button>
-                <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ 自訂區域查詢</button>
+                <button class="btn btn-secondary admin-action-btn" onclick="loadAdminStudentRecords()">📅 Daily Records<br>(<span id="records-date-label"></span>)</button>
+                <button class="btn btn-warning admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 Weekly Leaderboard</button>
+                <button class="btn btn-warning admin-action-btn" onclick="openCustomRangeModal()">🗓️ Custom Range Leaderboard</button>
                 
                 <!-- 第二排 -->
-                <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ 未訂正查詢</button>
-                <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 缺考查詢</button>
+                <button class="btn btn-danger admin-action-btn" onclick="calculateUncorrectedStudents()">❌ Pending Corrections Search</button>
+                <button class="btn btn-purple admin-action-btn" onclick="calculateAbsentStudents()">🚫 Absence Records</button>
             </div>
 
             <div id="records-list"></div>
@@ -663,19 +669,19 @@
 <div id="modal-date-range" class="modal-overlay hidden">
     <div class="modal-card">
         <div class="modal-title">
-            <span>🗓️ 選擇自訂排名日期範圍</span>
+            <span>🗓️ Custom Range Leaderboard</span>
         </div>
         <div class="date-picker-group">
-            <label for="custom-start-date">▶ 起始日期 (Start Date)：</label>
+            <label for="custom-start-date">▶ Start Date:</label>
             <input type="date" id="custom-start-date" class="date-picker-input">
         </div>
         <div class="date-picker-group">
-            <label for="custom-end-date">◀ 結束日期 (End Date)：</label>
+            <label for="custom-end-date">◀ End Date:</label>
             <input type="date" id="custom-end-date" class="date-picker-input">
         </div>
         <div class="modal-btn-row">
-            <button class="btn btn-secondary" onclick="closeCustomRangeModal()">取消</button>
-            <button class="btn" onclick="submitCustomRangeLeaderboard()">🔍 查詢排名</button>
+            <button class="btn btn-secondary" onclick="closeCustomRangeModal()">Cancel</button>
+            <button class="btn" onclick="submitCustomRangeLeaderboard()">🔍 Search Leaderboard</button>
         </div>
     </div>
 </div>
@@ -703,10 +709,10 @@
     async function saveExamToCloud(dateStr, examData) {
         try {
             await setDoc(doc(db, "exams", dateStr), examData);
-            alert(`✅ 考題已成功發布至 Firebase 雲端資料庫 (${dateStr})！`);
+            alert(`✅ Exam published successfully to Firebase cloud (${dateStr})!`);
         } catch (error) {
             console.error("Cloud Save Exam Error:", error);
-            alert("❌ 儲存失敗！請確認 Firebase 規則已設定開放。");
+            alert("❌ Failed to save! Please verify Firebase permissions.");
         }
     }
 
@@ -724,7 +730,7 @@
     async function deleteExamFromCloud(dateStr) {
         try {
             await deleteDoc(doc(db, "exams", dateStr));
-            alert(`✅ 已成功刪除 ${dateStr} 的雲端考題。`);
+            alert(`✅ Successfully deleted cloud exam for ${dateStr}.`);
         } catch (error) {
             console.error("Cloud Delete Exam Error:", error);
         }
@@ -1047,7 +1053,7 @@
         container.innerHTML = '';
 
         if (!records || records.length === 0) {
-            container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">尚無學生於 ${selectedDateStr} 完成考試。</p>`;
+            container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No students completed the exam on ${selectedDateStr}.</p>`;
             return;
         }
 
@@ -1060,18 +1066,18 @@
                     <div class="res-header">
                         <span>Q${d.id}. ${d.stem}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                            ${d.isCorrect ? '✓ 對' : '✗ 錯'} (${d.earnedPoints}/${d.points} 分)
+                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.earnedPoints}/${d.points} pts)
                         </span>
                     </div>
-                    <div>學生答案: <strong>${d.userAns}</strong> | 正確答案: <strong>${d.correctAns}</strong></div>
+                    <div>Student Answer: <strong>${d.userAns}</strong> | Correct Answer: <strong>${d.correctAns}</strong></div>
                 </div>
             `).join('');
 
             recEl.innerHTML = `
                 <div class="record-summary">
                     <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary-color);">👤 ${rec.studentName}</span>
-                    <span>得分: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong></span>
-                    <button class="btn btn-inline btn-secondary" onclick="toggleDetails('rec-detail-${idx}')">答題明細</button>
+                    <span>Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong></span>
+                    <button class="btn btn-inline btn-secondary" onclick="toggleDetails('rec-detail-${idx}')">View Details</button>
                 </div>
                 <div id="rec-detail-${idx}" class="hidden" style="margin-top: 10px;">
                     ${detailsHtml}
@@ -1083,7 +1089,7 @@
 
     async function calculateUncorrectedStudents() {
         const container = document.getElementById('records-list');
-        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站學生訂正紀錄...</p>';
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Scanning student correction records...</p>';
 
         try {
             const querySnapshot = await getDocs(collection(db, "records"));
@@ -1119,7 +1125,7 @@
             renderUncorrectedStudentsUI(uncorrectedList);
         } catch (error) {
             console.error("Uncorrected List Error:", error);
-            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入未訂正名單失敗，請重試。</p>';
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ Failed to load pending corrections list. Please try again.</p>';
         }
     }
 
@@ -1128,28 +1134,28 @@
 
         let tableHtml = `
             <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
-                <h3 style="color:var(--danger-color); margin-bottom:12px; font-size:1.15rem;">❌ 學生未訂正題型追蹤名單</h3>
+                <h3 style="color:var(--danger-color); margin-bottom:12px; font-size:1.15rem;">❌ Uncorrected Questions Tracking List</h3>
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#fef2f2; border-bottom:2px solid #fecaca; color:#991b1b;">
-                            <th style="padding:10px; text-align:left;">學生姓名</th>
-                            <th style="padding:10px;">未訂正天數</th>
-                            <th style="padding:10px;">詳細資料</th>
+                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px;">Days Pending Correction</th>
+                            <th style="padding:10px;">Details</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         if (uncorrectedList.length === 0) {
-            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！目前所有學生均已完成所有訂正。</td></tr>`;
+            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 Great job! All students have completed their corrections.</td></tr>`;
         } else {
             uncorrectedList.forEach((row, idx) => {
                 const detailId = `uncorrected-detail-${idx}`;
                 
                 let detailsListHtml = row.records.map(r => `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#fff; border:1px solid #fee2e2; border-radius:6px; margin-bottom:6px; font-size:0.88rem;">
-                        <span>📅 沒訂正日期：<strong style="color:#0f172a;">${r.date}</strong></span>
-                        <span style="color:var(--danger-color); font-weight:700;">❌ 尚有 ${r.wrongCount} 題錯題待訂正 (共 ${r.totalQuestions} 題)</span>
+                        <span>📅 Pending Correction Date: <strong style="color:#0f172a;">${r.date}</strong></span>
+                        <span style="color:var(--danger-color); font-weight:700;">❌ ${r.wrongCount} incorrect questions pending correction (out of ${r.totalQuestions} total)</span>
                     </div>
                 `).join('');
 
@@ -1157,15 +1163,15 @@
                     <tr style="border-bottom:1px solid #e2e8f0;">
                         <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
                         <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
-                            ${row.count} 天
+                            ${row.count} Days
                         </td>
                         <td style="padding:12px;">
-                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 查看明細</button>
+                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 View Details</button>
                         </td>
                     </tr>
                     <tr id="${detailId}" class="hidden" style="background:#fff5f5;">
                         <td colspan="3" style="padding:12px; text-align:left;">
-                            <div style="font-weight:700; color:#991b1b; margin-bottom:8px;">📌 未訂正日期與題數詳細清單：</div>
+                            <div style="font-weight:700; color:#991b1b; margin-bottom:8px;">📌 Uncorrected Questions by Date:</div>
                             ${detailsListHtml}
                         </td>
                     </tr>
@@ -1179,7 +1185,7 @@
 
     async function calculateAbsentStudents() {
         const container = document.getElementById('records-list');
-        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在掃描全站缺考紀錄...</p>';
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Scanning absence records...</p>';
 
         try {
             const todayStr = getFormattedDate(new Date());
@@ -1195,7 +1201,7 @@
             examDates.sort((a, b) => b.localeCompare(a));
 
             if (examDates.length === 0) {
-                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">目前尚無已發布的歷史考試。</p>';
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No historical exams found.</p>';
                 return;
             }
 
@@ -1240,7 +1246,7 @@
             renderAbsentStudentsUI(absentList, examDates.length);
         } catch (error) {
             console.error("Absent List Error:", error);
-            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入缺考名單失敗，請重試。</p>';
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ Failed to load absence list. Please try again.</p>';
         }
     }
 
@@ -1249,20 +1255,20 @@
 
         let tableHtml = `
             <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
-                <h3 style="color:var(--purple-color); margin-bottom:12px; font-size:1.15rem;">🚫 學生缺考紀錄追蹤名單 (歷來考試次數：${totalExamsCount} 次)</h3>
+                <h3 style="color:var(--purple-color); margin-bottom:12px; font-size:1.15rem;">🚫 Student Absence Tracking List (Total Exams: ${totalExamsCount})</h3>
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f3e8ff; border-bottom:2px solid #d8b4fe; color:#6b21a8;">
-                            <th style="padding:10px; text-align:left;">學生姓名</th>
-                            <th style="padding:10px;">缺考天數</th>
-                            <th style="padding:10px;">詳細資料</th>
+                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px;">Days Absent</th>
+                            <th style="padding:10px;">Details</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         if (absentList.length === 0) {
-            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 太棒了！所有學生均已完成迄今為止的所有考試。</td></tr>`;
+            tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 Excellent! All students have completed all tests to date.</td></tr>`;
         } else {
             absentList.forEach((row, idx) => {
                 const detailId = `absent-detail-${idx}`;
@@ -1277,15 +1283,15 @@
                     <tr style="border-bottom:1px solid #e2e8f0;">
                         <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
                         <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
-                            ${row.count} 天
+                            ${row.count} Days
                         </td>
                         <td style="padding:12px;">
-                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 查看缺考日期</button>
+                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('${detailId}')">🔍 View Absence Dates</button>
                         </td>
                     </tr>
                     <tr id="${detailId}" class="hidden" style="background:#faf5ff;">
                         <td colspan="3" style="padding:12px; text-align:left;">
-                            <div style="font-weight:700; color:#6b21a8; margin-bottom:8px;">📌 缺考日期詳細清單：</div>
+                            <div style="font-weight:700; color:#6b21a8; margin-bottom:8px;">📌 Absence Dates Details:</div>
                             ${detailsListHtml}
                         </td>
                     </tr>
@@ -1299,7 +1305,7 @@
 
     async function calculateWeeklyLeaderboard() {
         const { startStr, endStr } = getWeekRange(selectedDateStr);
-        await calculateRangeLeaderboard(startStr, endStr, `本週學生總得分排行榜 (${startStr} ~ ${endStr})`);
+        await calculateRangeLeaderboard(startStr, endStr, `Weekly Total Score Leaderboard (${startStr} ~ ${endStr})`);
     }
 
     function openCustomRangeModal() {
@@ -1321,22 +1327,22 @@
         const endStr = document.getElementById('custom-end-date').value;
 
         if (!startStr || !endStr) {
-            alert("❌ 請完整選擇【起始日期】與【結束日期】！");
+            alert("❌ Please select both Start Date and End Date!");
             return;
         }
 
         if (startStr > endStr) {
-            alert("❌【起始日期】不能晚於【結束日期】，請重新選擇！");
+            alert("❌ Start Date cannot be later than End Date. Please try again.");
             return;
         }
 
         closeCustomRangeModal();
-        await calculateRangeLeaderboard(startStr, endStr, `自訂範圍學生總得分排行榜 (${startStr} ~ ${endStr})`);
+        await calculateRangeLeaderboard(startStr, endStr, `Custom Range Leaderboard (${startStr} ~ ${endStr})`);
     }
 
     async function calculateRangeLeaderboard(startStr, endStr, titleText) {
         const container = document.getElementById('records-list');
-        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ 正在計算 ${startStr} 至 ${endStr} 排名資料...</p>`;
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Calculating leaderboard from ${startStr} to ${endStr}...</p>`;
 
         try {
             const querySnapshot = await getDocs(collection(db, "records"));
@@ -1375,7 +1381,7 @@
             renderRangeLeaderboardUI(startStr, endStr, leaderboard, titleText);
         } catch (error) {
             console.error("Leaderboard Error:", error);
-            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ 載入排行榜失敗，請重新再試。</p>';
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ Failed to load leaderboard. Please try again.</p>';
         }
     }
 
@@ -1388,17 +1394,17 @@
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:var(--text-muted);">
-                            <th style="padding:10px;">名次</th>
-                            <th style="padding:10px; text-align:left;">學生姓名</th>
-                            <th style="padding:10px;">測驗天數</th>
-                            <th style="padding:10px;">當期累計總分</th>
+                            <th style="padding:10px;">Rank</th>
+                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px;">Test Days</th>
+                            <th style="padding:10px;">Cumulative Total Score</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         if (leaderboard.length === 0) {
-            tableHtml += `<tr><td colspan="4" style="padding:16px; color:#64748b;">該區間 (${startStr} ~ ${endStr}) 尚無學生完成考試。</td></tr>`;
+            tableHtml += `<tr><td colspan="4" style="padding:16px; color:#64748b;">No students completed tests during this range (${startStr} ~ ${endStr}).</td></tr>`;
         } else {
             leaderboard.forEach(row => {
                 let badge = row.rank === 1 ? '🥇 1' : row.rank === 2 ? '🥈 2' : row.rank === 3 ? '🥉 3' : row.rank;
@@ -1408,8 +1414,8 @@
                             ${badge}
                         </td>
                         <td style="padding:12px; text-align:left; font-weight:700;">${row.name}</td>
-                        <td style="padding:12px;">${row.count} 天</td>
-                        <td style="padding:12px; font-weight:800; font-size:1.1rem; color:var(--primary-color);">${row.totalScore} 分</td>
+                        <td style="padding:12px;">${row.count} Days</td>
+                        <td style="padding:12px; font-weight:800; font-size:1.1rem; color:var(--primary-color);">${row.totalScore} pts</td>
                     </tr>
                 `;
             });
@@ -1435,7 +1441,7 @@
         if (!examData) {
             msg.className = "status-msg error";
             msg.innerText = (targetDate === getFormattedDate(new Date())) 
-                ? `❌ 今日 (${targetDate}) 尚未發布考題。` 
+                ? `❌ No exam published today (${targetDate}).` 
                 : `❌ No exam scheduled for ${targetDate}.`;
             startBtn.classList.add('hidden');
             return;
@@ -1448,26 +1454,26 @@
             const wrongQuestions = (studentRecord.details || []).filter(d => !d.isCorrect);
             if (wrongQuestions.length === 0) {
                 msg.className = "status-msg success";
-                msg.innerText = `🎉 您於 ${targetDate} 已考過此試卷，且取得滿分 (${studentRecord.score}/${studentRecord.totalPossible})！`;
+                msg.innerText = `🎉 You completed this exam on ${targetDate} with a perfect score (${studentRecord.score}/${studentRecord.totalPossible})!`;
                 startBtn.className = "btn btn-inline";
-                startBtn.innerText = "🔍 查看答題紀錄";
+                startBtn.innerText = "🔍 View Exam Details";
                 startBtn.onclick = () => viewPreviousResults(studentRecord);
                 startBtn.classList.remove('hidden');
             } else {
                 msg.className = "status-msg warning";
-                msg.innerText = `📝 您於 ${targetDate} 已考過（目前得分：${studentRecord.score}/${studentRecord.totalPossible}），尚有 ${wrongQuestions.length} 題需訂正！`;
+                msg.innerText = `📝 Exam taken on ${targetDate} (Score: ${studentRecord.score}/${studentRecord.totalPossible}). ${wrongQuestions.length} question(s) pending correction!`;
                 startBtn.className = "btn btn-inline btn-warning";
-                startBtn.innerText = "✍️ 開始訂正錯題";
+                startBtn.innerText = "✍️ Start Correction";
                 startBtn.onclick = () => startStudentExam(true);
                 startBtn.classList.remove('hidden');
             }
         } else {
             msg.className = "status-msg success";
             msg.innerText = (targetDate === getFormattedDate(new Date())) 
-                ? `✅ 今日考題已準備就緒！ (${targetDate})` 
+                ? `✅ Today's exam is ready! (${targetDate})` 
                 : `✅ Exam available for ${targetDate}!`;
             startBtn.className = "btn";
-            startBtn.innerText = "🚀 開始考試";
+            startBtn.innerText = "🚀 Start Exam";
             startBtn.onclick = () => startStudentExam(false);
             startBtn.classList.remove('hidden');
         }
@@ -1587,7 +1593,7 @@
             lastSectionType = q.type;
         }
 
-        document.getElementById('q-number').innerText = isCorrectionMode ? `[訂正題] ${q.id}.` : `${q.id}.`;
+        document.getElementById('q-number').innerText = isCorrectionMode ? `[Correction] ${q.id}.` : `${q.id}.`;
         document.getElementById('q-stem').innerText = q.stem;
         document.getElementById('q-points').innerText = `(Points: ${q.points})`;
 
@@ -1700,7 +1706,7 @@
 
                 let detailItem = studentRecord.details.find(d => d.id === q.id);
                 if (detailItem) {
-                    detailItem.userAns = uAns || '未作答';
+                    detailItem.userAns = uAns || 'No Answer';
                     detailItem.isCorrect = isCorrect;
                     detailItem.earnedPoints = earnedPoints;
                 }
@@ -1731,7 +1737,7 @@
                 detailsRecord.push({
                     id: q.id,
                     stem: q.stem,
-                    userAns: uAns || '未作答',
+                    userAns: uAns || 'No Answer',
                     correctAns: cAns,
                     isCorrect: isCorrect,
                     points: q.points,
@@ -1746,7 +1752,7 @@
 
         await saveResultToCloud(targetDate, currentUser, studentRecord);
 
-        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${targetDate}) ${isCorrectionMode ? ' - [訂正完成]' : ''}`;
+        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${targetDate}) ${isCorrectionMode ? ' - [Correction Completed]' : ''}`;
         document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
 
         let resultListHtml = '';
