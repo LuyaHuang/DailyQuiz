@@ -366,7 +366,7 @@
 
         /* Question & Results Styling */
         .section-def-banner {
-            padding: 16px;
+            padding: 16px 20px;
             border-radius: 0 10px 10px 0;
             margin-bottom: 22px;
             font-size: 1.05rem;
@@ -374,6 +374,7 @@
             white-space: pre-line;
             transition: all 0.3s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            line-height: 1.6;
         }
 
         .banner-blue {
@@ -388,10 +389,27 @@
             color: #14532d;
         }
 
-        .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
-        .points-tag { color: #0284c7; font-size: 1.1rem; font-weight: 600; margin-left: 8px; }
+        .question-stem { 
+            font-size: 1.3rem; 
+            font-weight: 700; 
+            line-height: 1.5; 
+            margin-bottom: 22px; 
+            color: var(--text-main);
+        }
+        
+        .points-tag { 
+            color: #0284c7; 
+            font-size: 1.05rem; 
+            font-weight: 600; 
+            margin-left: 8px; 
+        }
 
-        .options-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+        .options-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            margin-bottom: 28px; 
+        }
 
         .option-item {
             display: flex;
@@ -404,6 +422,7 @@
             font-size: 1.1rem;
             line-height: 1.4;
             background: #ffffff;
+            width: 100%;
         }
 
         .option-item:hover { 
@@ -418,6 +437,7 @@
             height: 20px; 
             cursor: pointer; 
             accent-color: var(--primary-color); 
+            flex-shrink: 0;
         }
 
         .text-answer-input {
@@ -515,12 +535,10 @@
             filter: brightness(1.05);
         }
 
-        /* 第一排：明亮藍色 */
         .btn-top-row {
             background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         }
 
-        /* 第二排：明亮翡翠綠 */
         .btn-bottom-row {
             background: linear-gradient(135deg, #059669 0%, #10b981 100%);
         }
@@ -647,7 +665,6 @@
             <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 Student Exam & Performance Analytics</h3>
 
             <div class="analytics-group">
-                <!-- 第一排：3個按鈕均分（明亮藍色） -->
                 <div class="admin-btn-row-top">
                     <button class="btn-analytics btn-top-row" onclick="loadAdminStudentRecords()">
                         <div class="btn-icon-badge">📅</div>
@@ -664,7 +681,6 @@
                     </button>
                 </div>
 
-                <!-- 第二排：2個按鈕均分（明亮翡翠綠） -->
                 <div class="admin-btn-row-bottom">
                     <button class="btn-analytics btn-bottom-row" onclick="calculateUncorrectedStudents()">
                         <div class="btn-icon-badge">✏️📋</div>
@@ -708,19 +724,19 @@
             <span id="q-points" class="points-tag">(Points: 5)</span>
         </div>
         <div id="answer-container"></div>
-        <button class="btn" onclick="confirmAndNext()">Submit & Next</button>
+        <button class="btn" onclick="confirmAndNext()">確定</button>
     </div>
 
     <div id="screen-result" class="hidden">
         <div class="score-display">
-            <h2>Test Completed!</h2>
-            <p style="margin-top: 6px; font-size: 1.3rem; font-weight: 700;" id="result-student-name">Student: -</p>
+            <h2>測驗完成！</h2>
+            <p style="margin-top: 6px; font-size: 1.3rem; font-weight: 700;" id="result-student-name">學生：-</p>
             <div class="score-number" id="final-score" style="margin-top: 8px;">0 / 100</div>
         </div>
 
-        <h3 style="margin-bottom: 14px;">Answer Breakdown</h3>
+        <h3 style="margin-bottom: 14px;">答題明細與對錯</h3>
         <div id="result-list"></div>
-        <button class="btn" onclick="location.reload()" style="margin-top: 18px;">Return to Menu / Switch User</button>
+        <button class="btn" onclick="location.reload()" style="margin-top: 18px;">返回主選單 / 切換使用者</button>
     </div>
 </div>
 
@@ -1061,25 +1077,56 @@
         }
     }
 
+    // 解析 Excel 題庫檔 (支援 ExamSP.xlsx 與其他標準/相容欄位格式)
     function parseExamData(rawData) {
         let parsedQuestions = [];
         let parsedDefs = {};
 
-        rawData.forEach((row, index) => {
-            if (row.Section && row.Definition) {
-                parsedDefs[row.Section] = row.Definition;
-            }
+        rawData.forEach((row) => {
+            const typeRaw = String(row.Type || row.type || row.Section || row.section || '').trim();
+            const stem = String(row['Question Stem'] || row.Stem || row.Question || row.Definition || row.question || '').trim();
+            const points = Number(row.Points || row.points || row.Score || row.score) || 5;
+            const answer = String(row.Answer !== undefined && row.Answer !== null ? row.Answer : row.answer || '').trim();
 
-            if (row.Stem || row.Question) {
-                parsedQuestions.push({
-                    id: index + 1,
-                    stem: row.Stem || row.Question,
-                    type: row.Type || (row.Options ? "MCQ" : "TEXT"),
-                    options: row.Options ? String(row.Options).split('|') : [],
-                    answer: String(row.Answer || '').trim(),
-                    points: Number(row.Points) || 5,
-                    section: row.Section || ""
-                });
+            if (typeRaw.toUpperCase().startsWith('DEF_')) {
+                const defKey = typeRaw.toUpperCase();
+                const sectionKey = defKey.replace('DEF_', '');
+                parsedDefs[defKey] = stem;
+                parsedDefs[sectionKey] = stem;
+            } else {
+                const qType = typeRaw.toUpperCase();
+                let options = [];
+
+                if (qType === 'B' || qType === 'C') {
+                    const choiceA = row['Choice A'] ?? row['ChoiceA'] ?? row['Option 1'] ?? row['Option A'] ?? row.options?.[0] ?? '';
+                    const choiceB = row['Choice B'] ?? row['ChoiceB'] ?? row['Option 2'] ?? row['Option B'] ?? row.options?.[1] ?? '';
+                    const choiceC = row['Choice C'] ?? row['ChoiceC'] ?? row['Option 3'] ?? row['Option C'] ?? row.options?.[2] ?? '';
+                    const choiceD = row['Choice D'] ?? row['ChoiceD'] ?? row['Option 4'] ?? row['Option D'] ?? row.options?.[3] ?? '';
+
+                    options = [
+                        { key: 'A', text: String(choiceA).trim() },
+                        { key: 'B', text: String(choiceB).trim() },
+                        { key: 'C', text: String(choiceC).trim() },
+                        { key: 'D', text: String(choiceD).trim() }
+                    ];
+                } else if (qType === 'D') {
+                    options = [
+                        { key: 'True', text: 'True' },
+                        { key: 'False', text: 'False' }
+                    ];
+                }
+
+                if (stem) {
+                    parsedQuestions.push({
+                        id: parsedQuestions.length + 1,
+                        stem: stem,
+                        type: qType,
+                        options: options,
+                        answer: answer,
+                        points: points,
+                        section: `DEF_${qType}`
+                    });
+                }
             }
         });
 
@@ -1158,15 +1205,18 @@
         const q = questions[currentIndex];
         if (!q) return;
 
+        // 1. 顯示大題說明 (DEF_A, DEF_B, DEF_C, DEF_D)
         const defBanner = document.getElementById('def-banner');
-        if (q.section && sectionDefs[q.section]) {
-            defBanner.innerText = `📌 Section ${q.section}\n${sectionDefs[q.section]}`;
+        const defText = sectionDefs[q.section] || sectionDefs[q.type] || sectionDefs[`DEF_${q.type}`];
+        if (defText) {
+            defBanner.innerText = defText;
             defBanner.className = "section-def-banner banner-blue";
             defBanner.classList.remove('hidden');
         } else {
             defBanner.classList.add('hidden');
         }
 
+        // 2. 題號、題目內文、與配分 (Points: X)
         document.getElementById('q-number').innerText = `${currentIndex + 1}.`;
         document.getElementById('q-stem').innerText = q.stem;
         document.getElementById('q-points').innerText = `(Points: ${q.points})`;
@@ -1174,26 +1224,47 @@
         const container = document.getElementById('answer-container');
         container.innerHTML = '';
 
-        if (q.options && q.options.length > 0) {
+        const currentVal = userAnswers[q.id] || '';
+
+        // DEF_A 填充題：單行文字輸入框
+        if (q.type === 'A' || (!q.options || q.options.length === 0)) {
+            container.innerHTML = `
+                <input type="text" class="text-answer-input" placeholder="請在此輸入答案..." value="${currentVal}" oninput="saveAnswer('${q.id}', this.value)">
+            `;
+        }
+        // DEF_B & DEF_C 選擇題：分四行獨立呈現，選項前面帶有單選圈圈
+        else if (q.type === 'B' || q.type === 'C') {
             const optGroup = document.createElement('div');
             optGroup.className = 'options-group';
 
             q.options.forEach((opt) => {
                 const label = document.createElement('label');
                 label.className = 'option-item';
-                const checked = userAnswers[q.id] === opt ? 'checked' : '';
+                const checked = (currentVal.toUpperCase() === opt.key.toUpperCase() || currentVal.toLowerCase() === opt.text.toLowerCase()) ? 'checked' : '';
                 label.innerHTML = `
-                    <input type="radio" name="q_opt" value="${opt}" ${checked} onchange="saveAnswer('${q.id}', '${opt}')">
-                    <span>${opt}</span>
+                    <input type="radio" name="q_opt_${q.id}" value="${opt.key}" ${checked} onchange="saveAnswer('${q.id}', '${opt.key}')">
+                    <span>(${opt.key}) ${opt.text}</span>
                 `;
                 optGroup.appendChild(label);
             });
             container.appendChild(optGroup);
-        } else {
-            const val = userAnswers[q.id] || '';
-            container.innerHTML = `
-                <input type="text" class="text-answer-input" placeholder="Type your answer here..." value="${val}" oninput="saveAnswer('${q.id}', this.value)">
-            `;
+        }
+        // DEF_D 是非題：出現 True 與 False 兩個單選圈圈選項
+        else if (q.type === 'D') {
+            const optGroup = document.createElement('div');
+            optGroup.className = 'options-group';
+
+            q.options.forEach((opt) => {
+                const label = document.createElement('label');
+                label.className = 'option-item';
+                const checked = (currentVal.toLowerCase() === opt.key.toLowerCase()) ? 'checked' : '';
+                label.innerHTML = `
+                    <input type="radio" name="q_opt_${q.id}" value="${opt.key}" ${checked} onchange="saveAnswer('${q.id}', '${opt.key}')">
+                    <span>${opt.text}</span>
+                `;
+                optGroup.appendChild(label);
+            });
+            container.appendChild(optGroup);
         }
     }
 
@@ -1204,7 +1275,7 @@
     async function confirmAndNext() {
         const q = questions[currentIndex];
         if (!userAnswers[q.id]) {
-            if (!confirm("You have not answered this question. Are you sure you want to proceed?")) {
+            if (!confirm("您尚未回答此題，確定要繼續下一題嗎？")) {
                 return;
             }
         }
@@ -1224,16 +1295,40 @@
 
         questions.forEach(q => {
             totalPossible += q.points;
-            const userAns = userAnswers[q.id] || "";
-            const isCorrect = userAns.toLowerCase() === String(q.answer).toLowerCase();
+            const userAns = (userAnswers[q.id] || "").trim();
+            let isCorrect = false;
+
+            if (q.type === 'A') {
+                isCorrect = (userAns.toLowerCase() === String(q.answer).trim().toLowerCase());
+            } else if (q.type === 'B' || q.type === 'C') {
+                const selectedOpt = q.options ? q.options.find(o => o.key.toUpperCase() === userAns.toUpperCase()) : null;
+                const selectedText = selectedOpt ? selectedOpt.text : '';
+                isCorrect = (userAns.toUpperCase() === String(q.answer).trim().toUpperCase()) ||
+                            (selectedText && selectedText.toLowerCase() === String(q.answer).trim().toLowerCase());
+            } else if (q.type === 'D') {
+                isCorrect = (userAns.toLowerCase() === String(q.answer).trim().toLowerCase());
+            }
+
             const earnedPoints = isCorrect ? q.points : 0;
             score += earnedPoints;
+
+            let displayUserAns = userAns || "(未作答)";
+            if ((q.type === 'B' || q.type === 'C') && userAns && q.options) {
+                const opt = q.options.find(o => o.key.toUpperCase() === userAns.toUpperCase());
+                if (opt) displayUserAns = `(${opt.key}) ${opt.text}`;
+            }
+
+            let displayCorrectAns = q.answer;
+            if ((q.type === 'B' || q.type === 'C') && q.answer && q.options) {
+                const opt = q.options.find(o => o.key.toUpperCase() === String(q.answer).trim().toUpperCase() || o.text.toLowerCase() === String(q.answer).trim().toLowerCase());
+                if (opt) displayCorrectAns = `(${opt.key}) ${opt.text}`;
+            }
 
             details.push({
                 id: q.id,
                 stem: q.stem,
-                userAns: userAns || "(No Answer)",
-                correctAns: q.answer,
+                userAns: displayUserAns,
+                correctAns: displayCorrectAns,
                 isCorrect: isCorrect,
                 points: q.points,
                 earnedPoints: earnedPoints
@@ -1254,19 +1349,19 @@
         document.getElementById('screen-exam').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
 
-        document.getElementById('result-student-name').innerText = `Student: ${currentUser}`;
+        document.getElementById('result-student-name').innerText = `學生：${currentUser}`;
         document.getElementById('final-score').innerText = `${score} / ${totalPossible}`;
 
         const listContainer = document.getElementById('result-list');
         listContainer.innerHTML = details.map(d => `
             <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
                 <div class="res-header">
-                    <span>Q${d.id}. ${d.stem}</span>
+                    <span>第 ${d.id} 題. ${d.stem}</span>
                     <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                        ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.earnedPoints}/${d.points} pts)
+                        ${d.isCorrect ? '✓ 正確' : '✗ 錯誤'} (${d.earnedPoints}/${d.points} 分)
                     </span>
                 </div>
-                <div>Your Answer: <strong>${d.userAns}</strong> | Correct: <strong>${d.correctAns}</strong></div>
+                <div>學生回答：<strong>${d.userAns}</strong> | 正確答案：<strong>${d.correctAns}</strong></div>
             </div>
         `).join('');
     }
@@ -1291,12 +1386,12 @@
             let detailsHtml = (rec.details || []).map(d => `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}" style="margin-top: 6px; font-size: 0.85rem;">
                     <div class="res-header">
-                        <span>Q${d.id}. ${d.stem}</span>
+                        <span>第 ${d.id} 題. ${d.stem}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.earnedPoints}/${d.points} pts)
+                            ${d.isCorrect ? '✓ 正確' : '✗ 錯誤'} (${d.earnedPoints}/${d.points} 分)
                         </span>
                     </div>
-                    <div>Student Answer: <strong>${d.userAns}</strong> | Correct Answer: <strong>${d.correctAns}</strong></div>
+                    <div>學生回答：<strong>${d.userAns}</strong> | 正確答案：<strong>${d.correctAns}</strong></div>
                 </div>
             `).join('');
 
