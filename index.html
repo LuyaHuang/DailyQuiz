@@ -403,7 +403,6 @@
 
         .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
         
-        /* Updated points-tag styling */
         .points-tag { 
             color: #0284c7; 
             font-size: 1.1rem; 
@@ -484,7 +483,6 @@
         .btn-secondary { background-color: #64748b; box-shadow: 0 4px 12px rgba(100, 116, 139, 0.18); }
         .btn-secondary:hover { background-color: #475569; box-shadow: 0 6px 16px rgba(100, 116, 139, 0.25); }
 
-        /* Custom Gradients for Admin Action Buttons */
         .btn-blue-grad {
             background: linear-gradient(135deg, #2563eb, #3b82f6);
             color: #ffffff;
@@ -534,7 +532,7 @@
             color: white; border-radius: 12px; margin-bottom: 24px;
             box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
         }
-        .score-number { font-size: 2.75rem; font-weight: 800; letter-spacing: -1px; }
+        .score-number { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; }
 
         .result-card { border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 12px; background: white; text-align: left; }
         .result-card.correct { border-left: 6px solid var(--success-color); }
@@ -626,12 +624,10 @@
             <h3 style="color: var(--text-main); font-size: 1.15rem; margin-top: 4px;">📊 Student Exam & Score Analytics</h3>
 
             <div class="admin-btn-grid">
-                <!-- Row 1: Bright Royal Blue Gradient -->
                 <button class="btn btn-blue-grad admin-action-btn" onclick="loadAdminStudentRecords()">📅 Daily Records (<span id="records-date-label"></span>)</button>
                 <button class="btn btn-blue-grad admin-action-btn" onclick="calculateWeeklyLeaderboard()">🏆 Weekly Ranking</button>
                 <button class="btn btn-blue-grad admin-action-btn" onclick="openCustomRangeModal()">🗓️ Custom Ranking</button>
                 
-                <!-- Row 2: Bright Emerald Green Gradient -->
                 <button class="btn btn-emerald-grad admin-action-btn" onclick="calculateUncorrectedStudents()">❌ Correction List</button>
                 <button class="btn btn-emerald-grad admin-action-btn" onclick="calculateAbsentStudents()">🚫 Absent List</button>
             </div>
@@ -675,7 +671,7 @@
     <!-- Step 3: Test Results -->
     <div id="screen-result" class="hidden">
         <div class="score-display">
-            <h2>Test Completed!</h2>
+            <h2 id="result-status-title">Test Completed!</h2>
             <p style="margin-top: 6px; font-size: 1.3rem; font-weight: 700;" id="result-student-name">Student: -</p>
             <div class="score-number" id="final-score" style="margin-top: 8px;">0 / 100</div>
         </div>
@@ -1082,12 +1078,14 @@
             const recEl = document.createElement('div');
             recEl.className = 'student-record-item';
 
+            const isFullyCorrected = rec.details && !rec.details.some(d => !d.isCorrect);
+
             let detailsHtml = (rec.details || []).map(d => `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}" style="margin-top: 6px; font-size: 0.85rem;">
                     <div class="res-header">
                         <span>Q${d.id}. ${d.stem}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.earnedPoints}/${d.points} Pts)
+                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0}/${d.points} Pts)
                         </span>
                     </div>
                     <div>Student Answer: <strong>${d.userAns}</strong> | Correct Answer: <strong>${d.correctAns}</strong></div>
@@ -1097,7 +1095,7 @@
             recEl.innerHTML = `
                 <div class="record-summary">
                     <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary-color);">👤 ${rec.studentName}</span>
-                    <span>Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong></span>
+                    <span>Initial Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong> ${isFullyCorrected ? '<span style="color:var(--success-color); font-size:0.85rem; font-weight:700;">(Correction Complete)</span>' : '<span style="color:var(--danger-color); font-size:0.85rem; font-weight:700;">(Needs Correction)</span>'}</span>
                     <button class="btn btn-inline btn-secondary" onclick="toggleDetails('rec-detail-${idx}')">Details</button>
                 </div>
                 <div id="rec-detail-${idx}" class="hidden" style="margin-top: 10px;">
@@ -1412,6 +1410,7 @@
         let tableHtml = `
             <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
                 <h3 style="color:var(--primary-color); margin-bottom:12px; font-size:1.15rem;">🏆 ${titleText}</h3>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:-8px; margin-bottom:12px;">(Based on 1st Attempt Scores only. Corrections are excluded.)</p>
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:var(--text-muted);">
@@ -1475,14 +1474,14 @@
             const wrongQuestions = (studentRecord.details || []).filter(d => !d.isCorrect);
             if (wrongQuestions.length === 0) {
                 msg.className = "status-msg success";
-                msg.innerText = `🎉 You completed the exam on ${targetDate} with a perfect score (${studentRecord.score}/${studentRecord.totalPossible})!`;
+                msg.innerText = `🎉 You completed all corrections for ${targetDate}! (Initial Exam Score: ${studentRecord.score}/${studentRecord.totalPossible})`;
                 startBtn.className = "btn btn-inline";
                 startBtn.innerText = "🔍 View Exam Record";
                 startBtn.onclick = () => viewPreviousResults(studentRecord);
                 startBtn.classList.remove('hidden');
             } else {
                 msg.className = "status-msg warning";
-                msg.innerText = `📝 You took the test on ${targetDate} (Score: ${studentRecord.score}/${studentRecord.totalPossible}). ${wrongQuestions.length} question(s) need correction!`;
+                msg.innerText = `📝 Initial Score: ${studentRecord.score}/${studentRecord.totalPossible}. ${wrongQuestions.length} question(s) need correction!`;
                 startBtn.className = "btn btn-inline btn-warning";
                 startBtn.innerText = "✍️ Start Correcting Mistakes";
                 startBtn.onclick = () => startStudentExam(true);
@@ -1504,8 +1503,9 @@
         document.getElementById('screen-student-select').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
 
+        document.getElementById('result-status-title').innerText = "Exam Record Overview";
         document.getElementById('result-student-name').innerText = `Student: ${studentRecord.studentName} (${studentRecord.date})`;
-        document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
+        document.getElementById('final-score').innerText = `Initial Score: ${studentRecord.score} / ${studentRecord.totalPossible} Points`;
 
         let resultListHtml = '';
         (studentRecord.details || []).forEach(d => {
@@ -1514,7 +1514,7 @@
                     <div class="res-header">
                         <span>Question ${d.id}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                            ${d.isCorrect ? '✓ Correct (+' + d.points + ' pts)' : '✗ Incorrect (0 / ' + d.points + ' pts)'}
+                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0} / ${d.points} pts)
                         </span>
                     </div>
                     <div style="margin-bottom: 8px;">${d.stem}</div>
@@ -1778,30 +1778,20 @@
         }
 
         if (isCorrectionMode && studentRecord.details && studentRecord.details.length > 0) {
+            // 訂正模式：只更新錯題的狀態，保留原始 score（不覆蓋初試成績）
             questions.forEach(q => {
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
                 let isCorrect = checkAnswer(q.type, uAns, cAns);
-                let earnedPoints = isCorrect ? q.points : 0;
 
                 let detailItem = studentRecord.details.find(d => d.id === q.id);
                 if (detailItem) {
                     detailItem.userAns = uAns || 'No Answer';
                     detailItem.isCorrect = isCorrect;
-                    detailItem.earnedPoints = earnedPoints;
                 }
             });
-
-            let totalEarned = 0;
-            let totalPossible = 0;
-            studentRecord.details.forEach(d => {
-                totalPossible += d.points;
-                if (d.isCorrect) totalEarned += d.points;
-            });
-            studentRecord.score = totalEarned;
-            studentRecord.totalPossible = totalPossible;
-
         } else {
+            // 初次測驗：計算原始成績並存檔
             let totalEarned = 0;
             let totalPossible = 0;
             let detailsRecord = [];
@@ -1832,8 +1822,17 @@
 
         await saveResultToCloud(targetDate, currentUser, studentRecord);
 
-        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${targetDate}) ${isCorrectionMode ? ' - [Correction Completed]' : ''}`;
-        document.getElementById('final-score').innerText = `${studentRecord.score} / ${studentRecord.totalPossible} Points`;
+        const remainingWrong = (studentRecord.details || []).filter(d => !d.isCorrect).length;
+
+        document.getElementById('result-status-title').innerText = isCorrectionMode ? "Correction Result" : "Test Completed!";
+        document.getElementById('result-student-name').innerText = `Student: ${currentUser} (${targetDate})`;
+        
+        document.getElementById('final-score').innerHTML = `
+            Initial Exam Score: ${studentRecord.score} / ${studentRecord.totalPossible}<br>
+            <span style="font-size:1.1rem; font-weight:600; color: ${remainingWrong === 0 ? '#4ade80' : '#fcd34d'};">
+                ${remainingWrong === 0 ? '🎉 All mistakes corrected!' : `📝 ${remainingWrong} question(s) remaining for correction.`}
+            </span>
+        `;
 
         let resultListHtml = '';
         studentRecord.details.forEach(d => {
@@ -1842,7 +1841,7 @@
                     <div class="res-header">
                         <span>Question ${d.id}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
-                            ${d.isCorrect ? '✓ Correct (+' + d.points + ' pts)' : '✗ Incorrect (0 / ' + d.points + ' pts)'}
+                            ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0} / ${d.points} pts)
                         </span>
                     </div>
                     <div style="margin-bottom: 8px;">${d.stem}</div>
