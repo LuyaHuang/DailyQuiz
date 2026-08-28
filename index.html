@@ -678,7 +678,13 @@
             <span id="q-stem"></span>
         </div>
         <div id="answer-container"></div>
-        <button class="btn" onclick="confirmAndNext()">Submit & Next</button>
+
+        <!-- Navigation Control: Prev | Next | Submit -->
+        <div class="exam-nav-container" style="display: flex; gap: 12px; margin-top: 24px; justify-content: space-between;">
+            <button id="btn-prev" class="btn btn-secondary" onclick="prevQuestion()" style="flex: 1;">Previous</button>
+            <button id="btn-next" class="btn" onclick="nextQuestion()" style="flex: 1;">Next</button>
+            <button id="btn-submit" class="btn btn-emerald-grad" onclick="submitExamWithCheck()" style="flex: 1;">Submit</button>
+        </div>
     </div>
 
     <!-- Step 3: Test Results -->
@@ -844,6 +850,30 @@
     let userAnswers = {};
     let isCorrectionMode = false;
     let lastSectionType = null;
+    let isExamActive = false; // 作答狀態鎖定標記
+
+    // 重新整理防誤觸防護
+    window.addEventListener('keydown', function(e) {
+        if (!isExamActive) return;
+        if (e.key === 'F5' || e.keyCode === 116) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R' || e.keyCode === 82)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (isExamActive) {
+            e.preventDefault();
+            e.returnValue = '作答進行中，確定要離開或重新整理嗎？未交卷的答案可能會遺失！';
+            return '作答進行中，確定要離開或重新整理嗎？未交卷的答案可能會遺失！';
+        }
+    });
 
     function resetLoginInput() {
         const inputEl = document.getElementById('input-username');
@@ -1732,6 +1762,7 @@
         currentIndex = 0;
         userAnswers = {};
         lastSectionType = null;
+        isExamActive = true; // 啟用防誤刷保護
 
         document.getElementById('screen-student-select').classList.add('hidden');
         document.getElementById('screen-exam').classList.remove('hidden');
@@ -1789,6 +1820,57 @@
         return { sectionDefs: defs, questions: qList };
     }
 
+    function saveCurrentAnswer() {
+        if (!questions || questions.length === 0 || currentIndex < 0 || currentIndex >= questions.length) return;
+        let q = questions[currentIndex];
+        let cleanType = q.type.toString().toUpperCase().replace(/^TYPE[\s_]*/i, '').trim();
+
+        if (cleanType === 'A' || cleanType === 'FILL_IN' || cleanType === 'TEXT' || (!['B', 'C', 'D', 'CHOICE', 'SELECT', 'TF', 'TRUE_FALSE', 'BOOLEAN'].includes(cleanType))) {
+            let input = document.getElementById('input-text-ans');
+            if (input) {
+                userAnswers[q.id] = input.value.trim();
+            }
+        } else {
+            let selected = document.querySelector('input[name="option"]:checked');
+            if (selected) {
+                userAnswers[q.id] = selected.value;
+            }
+        }
+    }
+
+    function updateNavButtons() {
+        const prevBtn = document.getElementById('btn-prev');
+        const nextBtn = document.getElementById('btn-next');
+        const submitBtn = document.getElementById('btn-submit');
+
+        // 第一題不顯示 Prev 按鈕
+        if (prevBtn) {
+            if (currentIndex === 0) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+        }
+
+        // 最後一題不顯示 Next 按鈕
+        if (nextBtn) {
+            if (currentIndex === questions.length - 1) {
+                nextBtn.classList.add('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+            }
+        }
+
+        // 當最後一題出現時才能顯示/按下 Submit 按鈕
+        if (submitBtn) {
+            if (currentIndex === questions.length - 1) {
+                submitBtn.classList.remove('hidden');
+            } else {
+                submitBtn.classList.add('hidden');
+            }
+        }
+    }
+
     function renderQuestion() {
         let q = questions[currentIndex];
 
@@ -1828,8 +1910,15 @@
             input.className = 'text-answer-input';
             input.placeholder = 'Type your answer here...';
             input.value = userAnswers[q.id] || '';
+            input.oninput = function() { userAnswers[q.id] = this.value.trim(); };
             input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') confirmAndNext();
+                if (e.key === 'Enter') {
+                    if (currentIndex < questions.length - 1) {
+                        nextQuestion();
+                    } else {
+                        submitExamWithCheck();
+                    }
+                }
             });
             container.appendChild(input);
             setTimeout(() => input.focus(), 50);
@@ -1848,10 +1937,13 @@
                 if (opt.text && opt.text !== 'null' && opt.text !== 'undefined') {
                     let label = document.createElement('label');
                     label.className = 'option-item';
+                    let isChecked = userAnswers[q.id] === opt.val;
                     label.innerHTML = `
-                        <input type="radio" name="option" value="${opt.val}" ${userAnswers[q.id] === opt.val ? 'checked' : ''}>
+                        <input type="radio" name="option" value="${opt.val}" ${isChecked ? 'checked' : ''}>
                         <span>(${opt.val}) ${opt.text}</span>
                     `;
+                    let radio = label.querySelector('input');
+                    radio.onchange = function() { userAnswers[q.id] = this.value; };
                     group.appendChild(label);
                 }
             });
@@ -1868,6 +1960,8 @@
                     <input type="radio" name="option" value="${val}" ${isChecked ? 'checked' : ''}>
                     <span>${val}</span>
                 `;
+                let radio = label.querySelector('input');
+                radio.onchange = function() { userAnswers[q.id] = this.value; };
                 group.appendChild(label);
             });
             container.appendChild(group);
@@ -1878,39 +1972,59 @@
             input.className = 'text-answer-input';
             input.placeholder = 'Type your answer here...';
             input.value = userAnswers[q.id] || '';
+            input.oninput = function() { userAnswers[q.id] = this.value.trim(); };
             input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') confirmAndNext();
+                if (e.key === 'Enter') {
+                    if (currentIndex < questions.length - 1) {
+                        nextQuestion();
+                    } else {
+                        submitExamWithCheck();
+                    }
+                }
             });
             container.appendChild(input);
             setTimeout(() => input.focus(), 50);
         }
+
+        updateNavButtons();
     }
 
-    function confirmAndNext() {
-        let q = questions[currentIndex];
-        let ans = '';
-
-        let cleanType = q.type.toString().toUpperCase().replace(/^TYPE[\s_]*/i, '').trim();
-
-        if (cleanType === 'A' || cleanType === 'FILL_IN' || cleanType === 'TEXT' || (!['B', 'C', 'D', 'CHOICE', 'SELECT', 'TF', 'TRUE_FALSE', 'BOOLEAN'].includes(cleanType))) {
-            let input = document.getElementById('input-text-ans');
-            ans = input ? input.value.trim() : '';
-        } else {
-            let selected = document.querySelector('input[name="option"]:checked');
-            if (selected) ans = selected.value;
+    function prevQuestion() {
+        saveCurrentAnswer();
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderQuestion();
         }
+    }
 
-        if (!ans) {
-            alert('Please select or type an answer before proceeding!');
-            return;
-        }
-
-        userAnswers[q.id] = ans;
-
+    function nextQuestion() {
+        saveCurrentAnswer();
         if (currentIndex < questions.length - 1) {
             currentIndex++;
             renderQuestion();
+        }
+    }
+
+    function submitExamWithCheck() {
+        saveCurrentAnswer();
+
+        let unansweredNums = [];
+        questions.forEach((q, idx) => {
+            let ans = userAnswers[q.id];
+            if (ans === undefined || ans === null || String(ans).trim() === '') {
+                unansweredNums.push(`第 ${idx + 1} 題`);
+            }
+        });
+
+        let confirmMsg = "";
+        if (unansweredNums.length > 0) {
+            confirmMsg = `⚠️ 提醒：您還有 ${unansweredNums.length} 個題目尚未作答！\n未作答題號：${unansweredNums.join('、')}\n\n確定真的要交卷嗎？`;
         } else {
+            confirmMsg = "✅ 所有題目皆已作答完成，確定要交卷嗎？";
+        }
+
+        if (confirm(confirmMsg)) {
+            isExamActive = false; // 解除防護
             showResults();
         }
     }
@@ -1937,6 +2051,8 @@
     }
 
     async function showResults() {
+        isExamActive = false; // 解除防誤刷保護
+
         document.getElementById('screen-exam').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
 
@@ -2007,13 +2123,13 @@
         
         document.getElementById('final-score').innerHTML = `
             Initial Exam Score: ${studentRecord.score} / ${studentRecord.totalPossible}<br>
-            <span style="font-size:1.1rem; font-weight:600; color: ${remainingWrong === 0 ? '#4ade80' : '#fcd34d'};">
-                ${remainingWrong === 0 ? '🎉 All mistakes corrected!' : `📝 ${remainingWrong} question(s) remaining for correction.`}
+            <span style="font-size:1.1rem; font-weight:600; color: ${remainingWrong > 0 ? 'var(--warning-color)' : 'var(--success-color)'}; margin-top: 6px; display: inline-block;">
+                ${remainingWrong > 0 ? `⚠️ ${remainingWrong} Question(s) Remaining to Correct` : '🎉 All Questions Corrected!'}
             </span>
         `;
 
         let resultListHtml = '';
-        studentRecord.details.forEach(d => {
+        (studentRecord.details || []).forEach(d => {
             resultListHtml += `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
                     <div class="res-header">
@@ -2032,8 +2148,9 @@
         document.getElementById('result-list').innerHTML = resultListHtml;
     }
 
-    window.resetLoginInput = resetLoginInput;
+    // 全局掛載以供 HTML 事件呼叫
     window.verifyLogin = verifyLogin;
+    window.resetLoginInput = resetLoginInput;
     window.changeMonth = changeMonth;
     window.handleAdminUpload = handleAdminUpload;
     window.deleteExamForSelectedDate = deleteExamForSelectedDate;
@@ -2048,7 +2165,9 @@
     window.closeScoreHistoryModal = closeScoreHistoryModal;
     window.submitScoreHistorySearch = submitScoreHistorySearch;
     window.toggleDetails = toggleDetails;
-    window.confirmAndNext = confirmAndNext;
+    window.prevQuestion = prevQuestion;
+    window.nextQuestion = nextQuestion;
+    window.submitExamWithCheck = submitExamWithCheck;
 </script>
 </body>
 </html>
