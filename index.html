@@ -9,7 +9,7 @@
         :root {
             --primary-color: #4f46e5;
             --primary-hover: #4338ca;
-            --primary-light: #eeef2;
+            --primary-light: #eef2ff;
             --bg-color: #f1f5f9;
             --card-bg: #ffffff;
             --text-main: #0f172a;
@@ -60,7 +60,6 @@
             flex-wrap: nowrap;
         }
 
-        /* Logo (220px 等比例縮放) */
         .brand-logo { 
             width: 220px; 
             height: auto; 
@@ -74,7 +73,6 @@
             transform: scale(1.02);
         }
 
-        /* Header Text */
         .header-text { 
             text-align: left; 
             padding-left: 10px;
@@ -95,7 +93,6 @@
             font-weight: 500;
         }
 
-        /* 獨立成行且置中對齊的學生姓名標籤區塊 */
         .user-badge-wrapper {
             margin-bottom: 28px;
             text-align: center;
@@ -145,7 +142,6 @@
             background: #f1f5f9;
         }
 
-        /* System Login 標題字體加大 */
         .login-title {
             font-size: 2.3rem;
             font-weight: 800;
@@ -392,15 +388,6 @@
             color: #14532d;
         }
 
-        @keyframes flash-banner-effect {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.3; transform: scale(0.995); }
-        }
-
-        .banner-flash {
-            animation: flash-banner-effect 0.35s ease-in-out 3;
-        }
-
         .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
         .points-tag { color: #0284c7; font-size: 1.1rem; font-weight: 600; margin-left: 8px; }
 
@@ -476,7 +463,6 @@
         .btn-secondary { background-color: #64748b; box-shadow: 0 4px 12px rgba(100, 116, 139, 0.18); }
         .btn-secondary:hover { background-color: #475569; box-shadow: 0 6px 16px rgba(100, 116, 139, 0.25); }
 
-        /* 重構：Admin Analytics 按鈕與分組樣式 */
         .analytics-group {
             margin-top: 14px;
             margin-bottom: 20px;
@@ -528,7 +514,6 @@
             border: 1px solid transparent;
         }
 
-        /* 第一排：數據檢視區（柔和藍灰色系） */
         .btn-analytics.btn-data {
             background: #f0f4f8;
             border-color: #cbd5e1;
@@ -549,7 +534,6 @@
             color: #1e3a8a;
         }
 
-        /* 第二排：狀態篩選區（柔和暖灰色/淡杏色系） */
         .btn-analytics.btn-status {
             background: #f7f5f0;
             border-color: #e2dfd7;
@@ -570,7 +554,6 @@
             color: #334155;
         }
 
-        /* Icon 粗線條/獨立圓圈視覺強化 */
         .btn-icon-badge {
             display: inline-flex;
             align-items: center;
@@ -738,7 +721,7 @@
         <div class="card-box">
             <h3>Selected Date: <span id="student-target-date" style="color: var(--primary-color);">YYYY-MM-DD</span></h3>
             <div id="student-status-msg" class="status-msg" style="margin: 10px 0;"></div>
-            <button id="btn-start-student-exam" class="btn hidden" style="margin-top: 10px;">Start Test</button>
+            <button id="btn-start-student-exam" class="btn hidden" style="margin-top: 10px;" onclick="startStudentExam()">Start Test</button>
         </div>
     </div>
 
@@ -805,6 +788,64 @@
 
     const DEFAULT_PLACEHOLDER = "e.g., Peter Pan (Full English Name)";
 
+    const defaultStudentNames = [
+        "Jason Tsai", "Janice Liang", "Naomi Chang", "Chloe Chang", "Kyle Chang",
+        "Rapunzel Fu", "Amanda Lin", "Timmy Chen", "Mia Chen", "Harvey Chen",
+        "Roy Chou", "Jill Liao", "Wayne Hsieh", "Shannon Liu", "Ray Lin",
+        "Grace Yeh", "Nathan Lin", "Andrew Yeh", "Andely Hsieh", "Angelina Hsieh",
+        "Nini Huang", "Gabriel Chen", "Rick Wei", "Elly Lin", "Alice Yuan",
+        "Baron Yao", "Dean Huang", "Erica Wu", "Brian Chen", "Eason Chen",
+        "Yulin Huang", "Jason Hsu", "Diana Teng", "Jayden Lee", "Kelly Juan",
+        "Louie Liu", "Enzo Chou", "Flora Huang", "Claire Yang", "Caton Chin",
+        "Dora Chan", "Ian Kao", "Queenie Huang", "George Yu", "Yumie Chang",
+        "Claire Tsai", "Zoe Huang", "Lorrine Liu", "Olivia Huang", "Chi Chi Tsai",
+        "Sean Liao", "Yojen Lai", "Nick Huang", "Joe Lin", "Matteo Cheng",
+        "Auston Lai", "Ansel Lai", "Zack Lin", "Kane Lee", "Rachel Sun",
+        "Sydney Lee", "Emily Lin", "Ray Yeh", "Joshua Hsieh", "Aria Loh",
+        "Jasmine Pei", "Josh Chen", "Yosi Chiang"
+    ];
+
+    let currentUser = "";
+    let isAdmin = false;
+    let currentCalDate = new Date();
+    let selectedDateStr = getFormattedDate(new Date());
+
+    let currentExamData = null;
+    let sectionDefs = {};
+    let questions = [];
+    let currentIndex = 0;
+    let userAnswers = {};
+
+    function resetLoginInput() {
+        const inputEl = document.getElementById('input-username');
+        if (inputEl) {
+            inputEl.placeholder = DEFAULT_PLACEHOLDER;
+        }
+    }
+
+    function getFormattedDate(d = new Date()) {
+        let year = d.getFullYear();
+        let month = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function getWeekRange(targetDateStr) {
+        const parts = targetDateStr.split('-').map(Number);
+        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+        const day = dateObj.getDay(); 
+        const diffToMon = dateObj.getDate() - (day === 0 ? 6 : day - 1);
+
+        const monday = new Date(parts[0], parts[1] - 1, diffToMon);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+
+        return {
+            startStr: getFormattedDate(monday),
+            endStr: getFormattedDate(sunday)
+        };
+    }
+
     async function saveExamToCloud(dateStr, examData) {
         try {
             await setDoc(doc(db, "exams", dateStr), examData);
@@ -857,66 +898,6 @@
             console.error("Cloud Get Results Error:", error);
             return [];
         }
-    }
-
-    const defaultStudentNames = [
-        "Jason Tsai", "Janice Liang", "Naomi Chang", "Chloe Chang", "Kyle Chang",
-        "Rapunzel Fu", "Amanda Lin", "Timmy Chen", "Mia Chen", "Harvey Chen",
-        "Roy Chou", "Jill Liao", "Wayne Hsieh", "Shannon Liu", "Ray Lin",
-        "Grace Yeh", "Nathan Lin", "Andrew Yeh", "Andely Hsieh", "Angelina Hsieh",
-        "Nini Huang", "Gabriel Chen", "Rick Wei", "Elly Lin", "Alice Yuan",
-        "Baron Yao", "Dean Huang", "Erica Wu", "Brian Chen", "Eason Chen",
-        "Yulin Huang", "Jason Hsu", "Diana Teng", "Jayden Lee", "Kelly Juan",
-        "Louie Liu", "Enzo Chou", "Flora Huang", "Claire Yang", "Caton Chin",
-        "Dora Chan", "Ian Kao", "Queenie Huang", "George Yu", "Yumie Chang",
-        "Claire Tsai", "Zoe Huang", "Lorrine Liu", "Olivia Huang", "Chi Chi Tsai",
-        "Sean Liao", "Yojen Lai", "Nick Huang", "Joe Lin", "Matteo Cheng",
-        "Auston Lai", "Ansel Lai", "Zack Lin", "Kane Lee", "Rachel Sun",
-        "Sydney Lee", "Emily Lin", "Ray Yeh", "Joshua Hsieh", "Aria Loh",
-        "Jasmine Pei", "Josh Chen", "Yosi Chiang"
-    ];
-
-    let currentUser = "";
-    let isAdmin = false;
-    let currentCalDate = new Date();
-    let selectedDateStr = getFormattedDate(new Date());
-
-    let currentExamData = null;
-    let sectionDefs = {};
-    let questions = [];
-    let currentIndex = 0;
-    let userAnswers = {};
-    let isCorrectionMode = false;
-    let lastSectionType = null;
-
-    function resetLoginInput() {
-        const inputEl = document.getElementById('input-username');
-        if (inputEl) {
-            inputEl.placeholder = DEFAULT_PLACEHOLDER;
-        }
-    }
-
-    function getFormattedDate(d = new Date()) {
-        let year = d.getFullYear();
-        let month = String(d.getMonth() + 1).padStart(2, '0');
-        let day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-
-    function getWeekRange(targetDateStr) {
-        const parts = targetDateStr.split('-').map(Number);
-        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-        const day = dateObj.getDay(); 
-        const diffToMon = dateObj.getDate() - (day === 0 ? 6 : day - 1);
-
-        const monday = new Date(parts[0], parts[1] - 1, diffToMon);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-
-        return {
-            startStr: getFormattedDate(monday),
-            endStr: getFormattedDate(sunday)
-        };
     }
 
     async function verifyLogin() {
@@ -1105,6 +1086,31 @@
         }
     }
 
+    function parseExamData(rawData) {
+        let parsedQuestions = [];
+        let parsedDefs = {};
+
+        rawData.forEach((row, index) => {
+            if (row.Section && row.Definition) {
+                parsedDefs[row.Section] = row.Definition;
+            }
+
+            if (row.Stem || row.Question) {
+                parsedQuestions.push({
+                    id: index + 1,
+                    stem: row.Stem || row.Question,
+                    type: row.Type || (row.Options ? "MCQ" : "TEXT"),
+                    options: row.Options ? String(row.Options).split('|') : [],
+                    answer: String(row.Answer || '').trim(),
+                    points: Number(row.Points) || 5,
+                    section: row.Section || ""
+                });
+            }
+        });
+
+        return { sectionDefs: parsedDefs, questions: parsedQuestions };
+    }
+
     async function handleAdminUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -1141,6 +1147,153 @@
             await deleteExamFromCloud(selectedDateStr);
             await renderCalendar();
         }
+    }
+
+    async function checkStudentDateExam() {
+        const msgEl = document.getElementById('student-status-msg');
+        const btnStart = document.getElementById('btn-start-student-exam');
+        msgEl.innerText = "⏳ Checking test availability...";
+
+        currentExamData = await getExamFromCloud(selectedDateStr);
+
+        if (currentExamData && currentExamData.questions && currentExamData.questions.length > 0) {
+            msgEl.className = "status-msg success";
+            msgEl.innerText = `✅ Test available for ${selectedDateStr}. Click below to begin.`;
+            btnStart.classList.remove('hidden');
+        } else {
+            msgEl.className = "status-msg error";
+            msgEl.innerText = `❌ No test found for ${selectedDateStr}.`;
+            btnStart.classList.add('hidden');
+        }
+    }
+
+    function startStudentExam() {
+        if (!currentExamData) return;
+        sectionDefs = currentExamData.sectionDefs || {};
+        questions = currentExamData.questions || [];
+        currentIndex = 0;
+        userAnswers = {};
+
+        document.getElementById('screen-student-select').classList.add('hidden');
+        document.getElementById('screen-exam').classList.remove('hidden');
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = questions[currentIndex];
+        if (!q) return;
+
+        const defBanner = document.getElementById('def-banner');
+        if (q.section && sectionDefs[q.section]) {
+            defBanner.innerText = `📌 Section ${q.section}\n${sectionDefs[q.section]}`;
+            defBanner.className = "section-def-banner banner-blue";
+            defBanner.classList.remove('hidden');
+        } else {
+            defBanner.classList.add('hidden');
+        }
+
+        document.getElementById('q-number').innerText = `${currentIndex + 1}.`;
+        document.getElementById('q-stem').innerText = q.stem;
+        document.getElementById('q-points').innerText = `(Points: ${q.points})`;
+
+        const container = document.getElementById('answer-container');
+        container.innerHTML = '';
+
+        if (q.options && q.options.length > 0) {
+            const optGroup = document.createElement('div');
+            optGroup.className = 'options-group';
+
+            q.options.forEach((opt) => {
+                const label = document.createElement('label');
+                label.className = 'option-item';
+                const checked = userAnswers[q.id] === opt ? 'checked' : '';
+                label.innerHTML = `
+                    <input type="radio" name="q_opt" value="${opt}" ${checked} onchange="saveAnswer('${q.id}', '${opt}')">
+                    <span>${opt}</span>
+                `;
+                optGroup.appendChild(label);
+            });
+            container.appendChild(optGroup);
+        } else {
+            const val = userAnswers[q.id] || '';
+            container.innerHTML = `
+                <input type="text" class="text-answer-input" placeholder="Type your answer here..." value="${val}" oninput="saveAnswer('${q.id}', this.value)">
+            `;
+        }
+    }
+
+    function saveAnswer(qId, val) {
+        userAnswers[qId] = val.trim();
+    }
+
+    async function confirmAndNext() {
+        const q = questions[currentIndex];
+        if (!userAnswers[q.id]) {
+            if (!confirm("You have not answered this question. Are you sure you want to proceed?")) {
+                return;
+            }
+        }
+
+        if (currentIndex < questions.length - 1) {
+            currentIndex++;
+            renderQuestion();
+        } else {
+            await finishExam();
+        }
+    }
+
+    async function finishExam() {
+        let totalPossible = 0;
+        let score = 0;
+        let details = [];
+
+        questions.forEach(q => {
+            totalPossible += q.points;
+            const userAns = userAnswers[q.id] || "";
+            const isCorrect = userAns.toLowerCase() === String(q.answer).toLowerCase();
+            const earnedPoints = isCorrect ? q.points : 0;
+            score += earnedPoints;
+
+            details.push({
+                id: q.id,
+                stem: q.stem,
+                userAns: userAns || "(No Answer)",
+                correctAns: q.answer,
+                isCorrect: isCorrect,
+                points: q.points,
+                earnedPoints: earnedPoints
+            });
+        });
+
+        const recordData = {
+            date: selectedDateStr,
+            studentName: currentUser,
+            score: score,
+            totalPossible: totalPossible,
+            details: details,
+            timestamp: new Date().toISOString()
+        };
+
+        await saveResultToCloud(selectedDateStr, currentUser, recordData);
+
+        document.getElementById('screen-exam').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+
+        document.getElementById('result-student-name').innerText = `Student: ${currentUser}`;
+        document.getElementById('final-score').innerText = `${score} / ${totalPossible}`;
+
+        const listContainer = document.getElementById('result-list');
+        listContainer.innerHTML = details.map(d => `
+            <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
+                <div class="res-header">
+                    <span>Q${d.id}. ${d.stem}</span>
+                    <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
+                        ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.earnedPoints}/${d.points} pts)
+                    </span>
+                </div>
+                <div>Your Answer: <strong>${d.userAns}</strong> | Correct: <strong>${d.correctAns}</strong></div>
+            </div>
+        `).join('');
     }
 
     async function loadAdminStudentRecords() {
@@ -1184,6 +1337,97 @@
             `;
             container.appendChild(recEl);
         });
+    }
+
+    async function calculateWeeklyLeaderboard() {
+        const { startStr, endStr } = getWeekRange(selectedDateStr);
+        await generateLeaderboard(startStr, endStr, `🏆 Weekly Leaderboard (${startStr} ~ ${endStr})`);
+    }
+
+    function openCustomRangeModal() {
+        document.getElementById('modal-date-range').classList.remove('hidden');
+    }
+
+    function closeCustomRangeModal() {
+        document.getElementById('modal-date-range').classList.add('hidden');
+    }
+
+    async function submitCustomRangeLeaderboard() {
+        const start = document.getElementById('custom-start-date').value;
+        const end = document.getElementById('custom-end-date').value;
+
+        if (!start || !end) {
+            alert('Please select both Start and End dates.');
+            return;
+        }
+
+        closeCustomRangeModal();
+        await generateLeaderboard(start, end, `🗓️ Leaderboard (${start} ~ ${end})`);
+    }
+
+    async function generateLeaderboard(startStr, endStr, titleStr) {
+        const container = document.getElementById('records-list');
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Calculating Leaderboard...</p>';
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            let studentScores = {};
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.date >= startStr && data.date <= endStr && data.studentName) {
+                    const name = data.studentName;
+                    if (!studentScores[name]) {
+                        studentScores[name] = { totalScore: 0, totalPossible: 0, testsCount: 0 };
+                    }
+                    studentScores[name].totalScore += data.score || 0;
+                    studentScores[name].totalPossible += data.totalPossible || 0;
+                    studentScores[name].testsCount += 1;
+                }
+            });
+
+            let ranked = Object.keys(studentScores).map(name => ({
+                name,
+                ...studentScores[name]
+            })).sort((a, b) => b.totalScore - a.totalScore);
+
+            let tableHtml = `
+                <div style="background:#fff; padding:16px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <h3 style="color:var(--primary-color); margin-bottom:12px; font-size:1.15rem; text-align:center;">${titleStr}</h3>
+                    <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
+                        <thead>
+                            <tr style="background:#e0e7ff; color:#3730a3;">
+                                <th style="padding:10px; text-align:left;">Rank</th>
+                                <th style="padding:10px; text-align:left;">Student</th>
+                                <th style="padding:10px;">Tests Taken</th>
+                                <th style="padding:10px;">Total Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            if (ranked.length === 0) {
+                tableHtml += `<tr><td colspan="4" style="padding:16px; color:var(--text-muted);">No test records found for this period.</td></tr>`;
+            } else {
+                ranked.forEach((r, idx) => {
+                    let medal = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : `${idx + 1}. `;
+                    tableHtml += `
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:10px; text-align:left; font-weight:700;">${medal}</td>
+                            <td style="padding:10px; text-align:left; font-weight:700;">👤 ${r.name}</td>
+                            <td style="padding:10px;">${r.testsCount}</td>
+                            <td style="padding:10px; font-weight:800; color:var(--primary-color);">${r.totalScore} / ${r.totalPossible}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            tableHtml += `</tbody></table></div>`;
+            container.innerHTML = tableHtml;
+        } catch (err) {
+            console.error("Leaderboard Error:", err);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ Failed to load leaderboard.</p>';
+        }
     }
 
     async function calculateUncorrectedStudents() {
@@ -1394,3 +1638,36 @@
                             ${detailsListHtml}
                         </td>
                     </tr>
+                `;
+            });
+        }
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
+    }
+
+    function toggleDetails(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden');
+    }
+
+    // 將 ES Module 內部的函數暴露至全域 window，解決 HTML onclick 找不到函數的問題
+    window.verifyLogin = verifyLogin;
+    window.resetLoginInput = resetLoginInput;
+    window.changeMonth = changeMonth;
+    window.handleAdminUpload = handleAdminUpload;
+    window.deleteExamForSelectedDate = deleteExamForSelectedDate;
+    window.loadAdminStudentRecords = loadAdminStudentRecords;
+    window.calculateWeeklyLeaderboard = calculateWeeklyLeaderboard;
+    window.openCustomRangeModal = openCustomRangeModal;
+    window.closeCustomRangeModal = closeCustomRangeModal;
+    window.submitCustomRangeLeaderboard = submitCustomRangeLeaderboard;
+    window.calculateUncorrectedStudents = calculateUncorrectedStudents;
+    window.calculateAbsentStudents = calculateAbsentStudents;
+    window.toggleDetails = toggleDetails;
+    window.startStudentExam = startStudentExam;
+    window.saveAnswer = saveAnswer;
+    window.confirmAndNext = confirmAndNext;
+</script>
+</body>
+</html>
