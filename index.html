@@ -1656,8 +1656,9 @@
             ['True', 'False'].forEach(val => {
                 let label = document.createElement('label');
                 label.className = 'option-item';
+                let isChecked = userAnswers[q.id] && (userAnswers[q.id].trim().toLowerCase() === val.toLowerCase());
                 label.innerHTML = `
-                    <input type="radio" name="option" value="${val}" ${userAnswers[q.id] === val ? 'checked' : ''}>
+                    <input type="radio" name="option" value="${val}" ${isChecked ? 'checked' : ''}>
                     <span>${val}</span>
                 `;
                 group.appendChild(label);
@@ -1707,6 +1708,27 @@
         }
     }
 
+    function checkAnswer(qType, uAns, cAns) {
+        let u = (uAns || '').trim();
+        let c = (cAns || '').trim();
+        let cleanType = (qType || '').toString().toUpperCase().replace(/^TYPE[\s_]*/i, '').trim();
+
+        if (cleanType === 'D' || cleanType === 'TF' || cleanType === 'TRUE_FALSE' || cleanType === 'BOOLEAN') {
+            let normU = u.toLowerCase();
+            let normC = c.toLowerCase();
+
+            if (['true', 't', '1', 'yes', 'y'].includes(normU)) normU = 'true';
+            if (['false', 'f', '0', 'no', 'n'].includes(normU)) normU = 'false';
+
+            if (['true', 't', '1', 'yes', 'y'].includes(normC)) normC = 'true';
+            if (['false', 'f', '0', 'no', 'n'].includes(normC)) normC = 'false';
+
+            return normU === normC;
+        }
+
+        return u === c;
+    }
+
     async function showResults() {
         document.getElementById('screen-exam').classList.add('hidden');
         document.getElementById('screen-result').classList.remove('hidden');
@@ -1729,8 +1751,7 @@
             questions.forEach(q => {
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
-                // 區分大小寫的比對 (Case-sensitive exact match after trimming)
-                let isCorrect = (uAns === cAns);
+                let isCorrect = checkAnswer(q.type, uAns, cAns);
                 let earnedPoints = isCorrect ? q.points : 0;
 
                 let detailItem = studentRecord.details.find(d => d.id === q.id);
@@ -1759,8 +1780,7 @@
                 totalPossible += q.points;
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
-                // 區分大小寫的比對 (Case-sensitive exact match after trimming)
-                let isCorrect = (uAns === cAns);
+                let isCorrect = checkAnswer(q.type, uAns, cAns);
                 let earnedPoints = isCorrect ? q.points : 0;
                 if (isCorrect) totalEarned += q.points;
 
