@@ -542,6 +542,18 @@
         .tag-correct { color: var(--success-color); }
         .tag-incorrect { color: var(--danger-color); }
 
+        .badge-corrected {
+            background-color: #2563eb;
+            color: #ffffff;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            margin-left: 8px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
         .records-section {
             margin-top: 24px;
             border-top: 2px solid var(--border-color);
@@ -1083,7 +1095,7 @@
             let detailsHtml = (rec.details || []).map(d => `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}" style="margin-top: 6px; font-size: 0.85rem;">
                     <div class="res-header">
-                        <span>Q${d.id}. ${d.stem}</span>
+                        <span>Q${d.id}. ${d.stem} ${d.isCorrected ? '<span class="badge-corrected">Corrected</span>' : ''}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
                             ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0}/${d.points} Pts)
                         </span>
@@ -1512,7 +1524,7 @@
             resultListHtml += `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
                     <div class="res-header">
-                        <span>Question ${d.id}</span>
+                        <span>Question ${d.id} ${d.isCorrected ? '<span class="badge-corrected">Corrected</span>' : ''}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
                             ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0} / ${d.points} pts)
                         </span>
@@ -1778,7 +1790,7 @@
         }
 
         if (isCorrectionMode && studentRecord.details && studentRecord.details.length > 0) {
-            // 訂正模式：只更新錯題的狀態，保留原始 score（不覆蓋初試成績）
+            // 訂正模式：更新錯題狀態，並將答對的題目標註 isCorrected: true
             questions.forEach(q => {
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
@@ -1788,6 +1800,9 @@
                 if (detailItem) {
                     detailItem.userAns = uAns || 'No Answer';
                     detailItem.isCorrect = isCorrect;
+                    if (isCorrect) {
+                        detailItem.isCorrected = true;
+                    }
                 }
             });
         } else {
@@ -1839,7 +1854,7 @@
             resultListHtml += `
                 <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}">
                     <div class="res-header">
-                        <span>Question ${d.id}</span>
+                        <span>Question ${d.id} ${d.isCorrected ? '<span class="badge-corrected">Corrected</span>' : ''}</span>
                         <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
                             ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0} / ${d.points} pts)
                         </span>
