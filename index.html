@@ -642,6 +642,7 @@
                 
                 <button class="btn btn-emerald-grad admin-action-btn" onclick="calculateUncorrectedStudents()">❌ Correction List</button>
                 <button class="btn btn-emerald-grad admin-action-btn" onclick="calculateAbsentStudents()">🚫 Absent List</button>
+                <button class="btn btn-emerald-grad admin-action-btn" onclick="openScoreHistoryModal()">🔍👤 View Score History</button>
             </div>
 
             <div id="records-list"></div>
@@ -711,6 +712,31 @@
         <div class="modal-btn-row">
             <button class="btn btn-secondary" onclick="closeCustomRangeModal()">Cancel</button>
             <button class="btn" onclick="submitCustomRangeLeaderboard()">🔍 Search Ranking</button>
+        </div>
+    </div>
+</div>
+
+<!-- Student Score History Modal -->
+<div id="modal-score-history" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-title">
+            <span>🔍👤 View Score History</span>
+        </div>
+        <div class="date-picker-group">
+            <label for="history-student-name">👤 Student Name:</label>
+            <input type="text" id="history-student-name" class="date-picker-input" placeholder="e.g. Peter Pan">
+        </div>
+        <div class="date-picker-group">
+            <label for="history-start-date">▶ Start Date:</label>
+            <input type="date" id="history-start-date" class="date-picker-input">
+        </div>
+        <div class="date-picker-group">
+            <label for="history-end-date">◀ End Date:</label>
+            <input type="date" id="history-end-date" class="date-picker-input">
+        </div>
+        <div class="modal-btn-row">
+            <button class="btn btn-secondary" onclick="closeScoreHistoryModal()">Cancel</button>
+            <button class="btn btn-emerald-grad" onclick="submitScoreHistorySearch()">🔍 Search History</button>
         </div>
     </div>
 </div>
@@ -1334,6 +1360,145 @@
         container.innerHTML = tableHtml;
     }
 
+    /* Score History Functions */
+    function openScoreHistoryModal() {
+        const startDateInput = document.getElementById('history-start-date');
+        const endDateInput = document.getElementById('history-end-date');
+        const nameInput = document.getElementById('history-student-name');
+        
+        nameInput.value = '';
+        startDateInput.value = selectedDateStr;
+        endDateInput.value = selectedDateStr;
+
+        document.getElementById('modal-score-history').classList.remove('hidden');
+    }
+
+    function closeScoreHistoryModal() {
+        document.getElementById('modal-score-history').classList.add('hidden');
+    }
+
+    async function submitScoreHistorySearch() {
+        const searchName = document.getElementById('history-student-name').value.trim();
+        const startStr = document.getElementById('history-start-date').value;
+        const endStr = document.getElementById('history-end-date').value;
+
+        if (!searchName) {
+            alert("❌ Please enter a student name!");
+            return;
+        }
+
+        if (!startStr || !endStr) {
+            alert("❌ Please select both Start Date and End Date!");
+            return;
+        }
+
+        if (startStr > endStr) {
+            alert("❌ Start Date cannot be later than End Date!");
+            return;
+        }
+
+        closeScoreHistoryModal();
+        await fetchAndRenderStudentHistory(searchName, startStr, endStr);
+    }
+
+    async function fetchAndRenderStudentHistory(searchName, startStr, endStr) {
+        const container = document.getElementById('records-list');
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Searching score history for "${searchName}" (${startStr} ~ ${endStr})...</p>`;
+
+        try {
+            const querySnapshot = await getDocs(collection(db, "records"));
+            const normalizedSearch = searchName.toLowerCase().replace(/\s+/g, ' ');
+
+            let matchedRecords = [];
+            let displayStudentName = searchName;
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.studentName && data.date) {
+                    const normDocName = data.studentName.trim().toLowerCase().replace(/\s+/g, ' ');
+                    if (normDocName === normalizedSearch && data.date >= startStr && data.date <= endStr) {
+                        matchedRecords.push(data);
+                        displayStudentName = data.studentName;
+                    }
+                }
+            });
+
+            matchedRecords.sort((a, b) => b.date.localeCompare(a.date));
+
+            if (matchedRecords.length === 0) {
+                container.innerHTML = `
+                    <div style="background:#fff; padding:20px; border-radius:10px; border:1px solid #e2e8f0; text-align:center;">
+                        <h3 style="color:var(--text-muted); font-size:1.1rem;">🔍 No exam records found</h3>
+                        <p style="color:var(--text-muted); font-size:0.9rem; margin-top:6px;">
+                            No matching records for "<strong>${searchName}</strong>" between <strong>${startStr}</strong> and <strong>${endStr}</strong>.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            let totalScore = 0;
+            let totalPossibleSum = 0;
+            matchedRecords.forEach(r => {
+                totalScore += (Number(r.score) || 0);
+                totalPossibleSum += (Number(r.totalPossible) || 0);
+            });
+
+            const avgPercent = totalPossibleSum > 0 ? ((totalScore / totalPossibleSum) * 100).toFixed(1) : '0.0';
+
+            let summaryHtml = `
+                <div style="background:#fff; padding:18px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h3 style="color:var(--primary-color); font-size:1.25rem;">👤 ${displayStudentName} - Score History</h3>
+                            <p style="color:var(--text-muted); font-size:0.88rem; margin-top:2px;">Date Range: <strong>${startStr}</strong> ~ <strong>${endStr}</strong></p>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:0.95rem; font-weight:600; color:var(--text-main);">Exams Taken: <strong>${matchedRecords.length}</strong> | </span>
+                            <span style="font-size:1.1rem; font-weight:800; color:var(--primary-color);">Avg Rate: ${avgPercent}%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            let recordsHtml = matchedRecords.map((rec, idx) => {
+                const isFullyCorrected = rec.details && !rec.details.some(d => !d.isCorrect);
+
+                let detailsHtml = (rec.details || []).map(d => `
+                    <div class="result-card ${d.isCorrect ? 'correct' : 'incorrect'}" style="margin-top: 6px; font-size: 0.85rem;">
+                        <div class="res-header">
+                            <span>Q${d.id}. ${d.stem} ${d.isCorrected ? '<span class="badge-corrected">Corrected</span>' : ''}</span>
+                            <span class="${d.isCorrect ? 'tag-correct' : 'tag-incorrect'}">
+                                ${d.isCorrect ? '✓ Correct' : '✗ Incorrect'} (${d.isCorrect ? d.points : 0}/${d.points} Pts)
+                            </span>
+                        </div>
+                        <div>Student Answer: <strong>${d.userAns}</strong> | Correct Answer: <strong>${d.correctAns}</strong></div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="student-record-item">
+                        <div class="record-summary">
+                            <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-main);">📅 Date: ${rec.date}</span>
+                            <span>Initial Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong> 
+                                ${isFullyCorrected ? '<span style="color:var(--success-color); font-size:0.85rem; font-weight:700; margin-left:6px;">(Correction Complete)</span>' : '<span style="color:var(--danger-color); font-size:0.85rem; font-weight:700; margin-left:6px;">(Needs Correction)</span>'}
+                            </span>
+                            <button class="btn btn-inline btn-secondary" onclick="toggleDetails('history-rec-detail-${idx}')">Details</button>
+                        </div>
+                        <div id="history-rec-detail-${idx}" class="hidden" style="margin-top: 10px;">
+                            ${detailsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = summaryHtml + recordsHtml;
+        } catch (error) {
+            console.error("Score History Search Error:", error);
+            container.innerHTML = '<p style="color: var(--danger-color); font-size: 0.9rem;">❌ Failed to load score history. Please try again.</p>';
+        }
+    }
+
     async function calculateWeeklyLeaderboard() {
         const { startStr, endStr } = getWeekRange(selectedDateStr);
         await calculateRangeLeaderboard(startStr, endStr, `Weekly Leaderboard (${startStr} ~ ${endStr})`);
@@ -1790,7 +1955,6 @@
         }
 
         if (isCorrectionMode && studentRecord.details && studentRecord.details.length > 0) {
-            // 訂正模式：更新錯題狀態，並將答對的題目標註 isCorrected: true
             questions.forEach(q => {
                 let uAns = (userAnswers[q.id] || '').trim();
                 let cAns = (q.answer || '').trim();
@@ -1806,7 +1970,6 @@
                 }
             });
         } else {
-            // 初次測驗：計算原始成績並存檔
             let totalEarned = 0;
             let totalPossible = 0;
             let detailsRecord = [];
@@ -1881,6 +2044,9 @@
     window.submitCustomRangeLeaderboard = submitCustomRangeLeaderboard;
     window.calculateUncorrectedStudents = calculateUncorrectedStudents;
     window.calculateAbsentStudents = calculateAbsentStudents;
+    window.openScoreHistoryModal = openScoreHistoryModal;
+    window.closeScoreHistoryModal = closeScoreHistoryModal;
+    window.submitScoreHistorySearch = submitScoreHistorySearch;
     window.toggleDetails = toggleDetails;
     window.confirmAndNext = confirmAndNext;
 </script>
