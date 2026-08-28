@@ -1444,7 +1444,7 @@
                 totalPossibleSum += (Number(r.totalPossible) || 0);
             });
 
-            const avgPercent = totalPossibleSum > 0 ? ((totalScore / totalPossibleSum) * 100).toFixed(1) : '0.0';
+            const avgScore = matchedRecords.length > 0 ? (totalScore / matchedRecords.length).toFixed(1) : '0.0';
 
             let summaryHtml = `
                 <div style="background:#fff; padding:18px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:16px;">
@@ -1454,8 +1454,8 @@
                             <p style="color:var(--text-muted); font-size:0.88rem; margin-top:2px;">Date Range: <strong>${startStr}</strong> ~ <strong>${endStr}</strong></p>
                         </div>
                         <div style="text-align:right;">
-                            <span style="font-size:0.95rem; font-weight:600; color:var(--text-main);">Exams Taken: <strong>${matchedRecords.length}</strong> | </span>
-                            <span style="font-size:1.1rem; font-weight:800; color:var(--primary-color);">Avg Rate: ${avgPercent}%</span>
+                            <span style="font-size:1.1rem; font-weight:700; color:var(--success-color);">Exams Taken: <strong>${matchedRecords.length}</strong> | </span>
+                            <span style="font-size:1.1rem; font-weight:800; color:var(--primary-color);">Average Score: ${avgScore}</span>
                         </div>
                     </div>
                 </div>
