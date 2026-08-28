@@ -372,7 +372,7 @@
         .section-def-banner {
             padding: 16px;
             border-radius: 0 10px 10px 0;
-            margin-bottom: 22px;
+            margin-bottom: 16px;
             font-size: 1.05rem;
             font-weight: 600;
             white-space: pre-line;
@@ -402,7 +402,15 @@
         }
 
         .question-stem { font-size: 1.35rem; font-weight: 700; line-height: 1.5; margin-bottom: 22px; }
-        .points-tag { color: #0284c7; font-size: 1.1rem; font-weight: 600; margin-left: 8px; }
+        
+        /* Updated points-tag styling */
+        .points-tag { 
+            color: #0284c7; 
+            font-size: 1.1rem; 
+            font-weight: 600; 
+            text-align: left;
+            margin-bottom: 12px; 
+        }
 
         .options-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
 
@@ -655,10 +663,10 @@
     <!-- Step 2: Testing View -->
     <div id="screen-exam" class="hidden">
         <div id="def-banner" class="section-def-banner"></div>
+        <div id="q-points" class="points-tag">(Points: 5)</div>
         <div class="question-stem">
             <span id="q-number">1.</span>
             <span id="q-stem"></span>
-            <span id="q-points" class="points-tag">(Points: 5)</span>
         </div>
         <div id="answer-container"></div>
         <button class="btn" onclick="confirmAndNext()">Submit & Next</button>
