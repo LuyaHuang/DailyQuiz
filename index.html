@@ -1742,6 +1742,16 @@
             .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
         container.replaceChildren();
+        const allLabel = document.createElement('label');
+        allLabel.style.cssText = 'display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer; color:#1d4ed8; font-weight:800; background:#eff6ff; grid-column:1 / -1;';
+        const allCheckbox = document.createElement('input');
+        allCheckbox.type = 'checkbox';
+        allCheckbox.id = `${containerId}-class-all`;
+        allCheckbox.style.accentColor = '#2563eb';
+        allLabel.htmlFor = allCheckbox.id;
+        allLabel.append(allCheckbox, document.createTextNode('ALL'));
+        container.appendChild(allLabel);
+
         classes.forEach((hr, index) => {
             const label = document.createElement('label');
             label.style.cssText = 'display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid #d1fae5; border-radius:6px; cursor:pointer; color:#166534; font-weight:700; background:#f0fdf4;';
@@ -1754,6 +1764,16 @@
             label.htmlFor = checkbox.id;
             label.append(checkbox, document.createTextNode(hr));
             container.appendChild(label);
+        });
+
+        const classCheckboxes = [...container.querySelectorAll('input[name="leaderboard-class"]')];
+        allCheckbox.addEventListener('change', () => {
+            classCheckboxes.forEach(checkbox => { checkbox.checked = allCheckbox.checked; });
+        });
+        classCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                allCheckbox.checked = classCheckboxes.length > 0 && classCheckboxes.every(item => item.checked);
+            });
         });
         return true;
     }
