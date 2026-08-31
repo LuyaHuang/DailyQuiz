@@ -1228,7 +1228,7 @@
 
             recEl.innerHTML = `
                 <div class="record-summary">
-                    <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary-color);">👤 ${rec.studentName}</span>
+                    <span style="font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${getStudentHR(rec.studentName, rec.studentHR)}</span> <span style="color:#0f172a;">${rec.studentName}</span></span>
                     <span>Initial Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong> ${isFullyCorrected ? '<span style="color:var(--success-color); font-size:0.85rem; font-weight:700;">(Correction Complete)</span>' : '<span style="color:var(--danger-color); font-size:0.85rem; font-weight:700;">(Needs Correction)</span>'}</span>
                     <button class="btn btn-inline btn-secondary" onclick="toggleDetails('rec-detail-${idx}')">Details</button>
                 </div>
@@ -1338,7 +1338,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.hr} ${row.name}</td>
+                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
                         <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -1489,7 +1489,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.hr} ${row.name}</td>
+                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
                         <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
