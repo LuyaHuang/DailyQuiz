@@ -709,6 +709,10 @@
             <span>🗓️ Select Custom Date Range</span>
         </div>
         <div class="date-picker-group">
+            <label>🏫 Select Class(es):</label>
+            <div id="custom-leaderboard-class-options" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; max-height:180px; overflow-y:auto; padding:10px; border:1px solid var(--border-color); border-radius:8px;"></div>
+        </div>
+        <div class="date-picker-group">
             <label for="custom-start-date">▶ Start Date:</label>
             <input type="date" id="custom-start-date" class="date-picker-input">
         </div>
@@ -719,6 +723,23 @@
         <div class="modal-btn-row">
             <button class="btn btn-secondary" onclick="closeCustomRangeModal()">Cancel</button>
             <button class="btn" onclick="submitCustomRangeLeaderboard()">🔍 Search Ranking</button>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Leaderboard Class Modal -->
+<div id="modal-weekly-leaderboard" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-title">
+            <span>🏆 Select Classes for Weekly Ranking</span>
+        </div>
+        <div class="date-picker-group">
+            <label>🏫 Select Class(es):</label>
+            <div id="weekly-leaderboard-class-options" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; max-height:220px; overflow-y:auto; padding:10px; border:1px solid var(--border-color); border-radius:8px;"></div>
+        </div>
+        <div class="modal-btn-row">
+            <button class="btn btn-secondary" onclick="closeWeeklyLeaderboardModal()">Cancel</button>
+            <button class="btn" onclick="submitWeeklyLeaderboard()">🏆 Show Ranking</button>
         </div>
     </div>
 </div>
@@ -1710,14 +1731,63 @@
         }
     }
 
-    async function calculateWeeklyLeaderboard() {
+    function populateLeaderboardClassOptions(containerId) {
+        if (!studentDirectoryLoaded) {
+            alert('Student list is still loading. Please try again shortly.');
+            return false;
+        }
+
+        const container = document.getElementById(containerId);
+        const classes = [...new Set(studentDirectory.map(student => student.hr))]
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        container.replaceChildren();
+        classes.forEach((hr, index) => {
+            const label = document.createElement('label');
+            label.style.cssText = 'display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid #d1fae5; border-radius:6px; cursor:pointer; color:#166534; font-weight:700; background:#f0fdf4;';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = 'leaderboard-class';
+            checkbox.value = hr;
+            checkbox.id = `${containerId}-class-${index}`;
+            checkbox.style.accentColor = '#16a34a';
+            label.htmlFor = checkbox.id;
+            label.append(checkbox, document.createTextNode(hr));
+            container.appendChild(label);
+        });
+        return true;
+    }
+
+    function getSelectedLeaderboardClasses(containerId) {
+        return [...document.querySelectorAll(`#${containerId} input[name="leaderboard-class"]:checked`)]
+            .map(checkbox => checkbox.value);
+    }
+
+    function calculateWeeklyLeaderboard() {
+        if (!populateLeaderboardClassOptions('weekly-leaderboard-class-options')) return;
+        document.getElementById('modal-weekly-leaderboard').classList.remove('hidden');
+    }
+
+    function closeWeeklyLeaderboardModal() {
+        document.getElementById('modal-weekly-leaderboard').classList.add('hidden');
+    }
+
+    async function submitWeeklyLeaderboard() {
+        const selectedClasses = getSelectedLeaderboardClasses('weekly-leaderboard-class-options');
+        if (selectedClasses.length === 0) {
+            alert('❌ Please select at least one class!');
+            return;
+        }
+
         const { startStr, endStr } = getWeekRange(selectedDateStr);
-        await calculateRangeLeaderboard(startStr, endStr, `Weekly Leaderboard (${startStr} ~ ${endStr})`);
+        closeWeeklyLeaderboardModal();
+        await calculateRangeLeaderboard(startStr, endStr, `Weekly Leaderboard (${startStr} ~ ${endStr})`, selectedClasses);
     }
 
     function openCustomRangeModal() {
         const startDateInput = document.getElementById('custom-start-date');
         const endDateInput = document.getElementById('custom-end-date');
+        if (!populateLeaderboardClassOptions('custom-leaderboard-class-options')) return;
         
         startDateInput.value = selectedDateStr;
         endDateInput.value = selectedDateStr;
@@ -1732,6 +1802,12 @@
     async function submitCustomRangeLeaderboard() {
         const startStr = document.getElementById('custom-start-date').value;
         const endStr = document.getElementById('custom-end-date').value;
+        const selectedClasses = getSelectedLeaderboardClasses('custom-leaderboard-class-options');
+
+        if (selectedClasses.length === 0) {
+            alert("❌ Please select at least one class!");
+            return;
+        }
 
         if (!startStr || !endStr) {
             alert("❌ Please select both Start Date and End Date!");
@@ -1744,10 +1820,10 @@
         }
 
         closeCustomRangeModal();
-        await calculateRangeLeaderboard(startStr, endStr, `Custom Range Leaderboard (${startStr} ~ ${endStr})`);
+        await calculateRangeLeaderboard(startStr, endStr, `Custom Range Leaderboard (${startStr} ~ ${endStr})`, selectedClasses);
     }
 
-    async function calculateRangeLeaderboard(startStr, endStr, titleText) {
+    async function calculateRangeLeaderboard(startStr, endStr, titleText, selectedClasses) {
         const container = document.getElementById('records-list');
         container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Calculating ranking data from ${startStr} to ${endStr}...</p>`;
 
@@ -1757,23 +1833,23 @@
 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                if (data.date >= startStr && data.date <= endStr) {
+                if (data.date >= startStr && data.date <= endStr && data.studentName) {
                     const name = data.studentName;
+                    const hr = getStudentHR(name, data.studentHR);
+                    if (!selectedClasses.includes(hr)) return;
                     const score = Number(data.score) || 0;
+                    const studentKey = `${hr}__${normalizeLoginValue(name)}`;
 
-                    if (!studentScores[name]) {
-                        studentScores[name] = { totalScore: 0, count: 0 };
+                    if (!studentScores[studentKey]) {
+                        studentScores[studentKey] = { name: name, hr: hr, totalScore: 0, count: 0 };
                     }
-                    studentScores[name].totalScore += score;
-                    studentScores[name].count += 1;
+                    studentScores[studentKey].totalScore += score;
+                    studentScores[studentKey].count += 1;
                 }
             });
 
-            let sortedList = Object.keys(studentScores).map(name => ({
-                name: name,
-                totalScore: studentScores[name].totalScore,
-                count: studentScores[name].count
-            })).sort((a, b) => b.totalScore - a.totalScore);
+            let sortedList = Object.values(studentScores)
+                .sort((a, b) => b.totalScore - a.totalScore || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
             let currentRank = 1;
             let leaderboard = sortedList.map((item, index) => {
@@ -1803,7 +1879,7 @@
                     <thead>
                         <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; color:var(--text-muted);">
                             <th style="padding:10px;">Rank</th>
-                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px; text-align:left;">Class + Student Name</th>
                             <th style="padding:10px;">Test Days</th>
                             <th style="padding:10px;">Total Score</th>
                         </tr>
@@ -1821,7 +1897,7 @@
                         <td style="padding:12px; font-weight:800; font-size:1.05rem; color:${row.rank <= 3 ? '#d97706' : '#0f172a'};">
                             ${badge}
                         </td>
-                        <td style="padding:12px; text-align:left; font-weight:700;">${row.name}</td>
+                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;"><span style="color:#16a34a;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
                         <td style="padding:12px;">${row.count} Day(s)</td>
                         <td style="padding:12px; font-weight:800; font-size:1.1rem; color:var(--primary-color);">${row.totalScore} Pts</td>
                     </tr>
@@ -2341,6 +2417,8 @@
     window.deleteExamForSelectedDate = deleteExamForSelectedDate;
     window.loadAdminStudentRecords = loadAdminStudentRecords;
     window.calculateWeeklyLeaderboard = calculateWeeklyLeaderboard;
+    window.closeWeeklyLeaderboardModal = closeWeeklyLeaderboardModal;
+    window.submitWeeklyLeaderboard = submitWeeklyLeaderboard;
     window.openCustomRangeModal = openCustomRangeModal;
     window.closeCustomRangeModal = closeCustomRangeModal;
     window.submitCustomRangeLeaderboard = submitCustomRangeLeaderboard;
