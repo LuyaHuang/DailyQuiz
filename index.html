@@ -730,8 +730,16 @@
             <span>🔍👤 View Score History</span>
         </div>
         <div class="date-picker-group">
-            <label for="history-student-name">👤 Student Name:</label>
-            <input type="text" id="history-student-name" class="date-picker-input" placeholder="e.g. Peter Pan">
+            <label for="history-class-select">🏫 Class:</label>
+            <select id="history-class-select" class="date-picker-input" onchange="populateHistoryStudentOptions()">
+                <option value="">Select a class</option>
+            </select>
+        </div>
+        <div class="date-picker-group">
+            <label for="history-student-select">👤 Student:</label>
+            <select id="history-student-select" class="date-picker-input" disabled>
+                <option value="">Select a class first</option>
+            </select>
         </div>
         <div class="date-picker-group">
             <label for="history-start-date">▶ Start Date:</label>
@@ -1228,7 +1236,7 @@
 
             recEl.innerHTML = `
                 <div class="record-summary">
-                    <span style="font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${getStudentHR(rec.studentName, rec.studentHR)}</span> <span style="color:#0f172a;">${rec.studentName}</span></span>
+                    <span style="font-size:1rem; font-weight:700;">👤 <span style="color:#16a34a;">${getStudentHR(rec.studentName, rec.studentHR)}</span> <span style="color:#0f172a;">${rec.studentName}</span></span>
                     <span>Initial Score: <strong style="color: var(--primary-color); font-size: 1.1rem;">${rec.score} / ${rec.totalPossible}</strong> ${isFullyCorrected ? '<span style="color:var(--success-color); font-size:0.85rem; font-weight:700;">(Correction Complete)</span>' : '<span style="color:var(--danger-color); font-size:0.85rem; font-weight:700;">(Needs Correction)</span>'}</span>
                     <button class="btn btn-inline btn-secondary" onclick="toggleDetails('rec-detail-${idx}')">Details</button>
                 </div>
@@ -1338,7 +1346,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
+                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#16a34a;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
                         <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -1489,7 +1497,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#166534;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
+                        <td style="padding:12px; text-align:left; font-size:1rem; font-weight:700;">👤 <span style="color:#16a34a;">${row.hr}</span> <span style="color:#0f172a;">${row.name}</span></td>
                         <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -1520,12 +1528,49 @@
     }
 
     /* Score History Functions */
+    function populateHistoryClassOptions() {
+        const classSelect = document.getElementById('history-class-select');
+        const classes = [...new Set(studentDirectory.map(student => student.hr))]
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+        classSelect.replaceChildren(new Option('Select a class', ''));
+        classes.forEach(hr => classSelect.add(new Option(hr, hr)));
+    }
+
+    function populateHistoryStudentOptions() {
+        const classSelect = document.getElementById('history-class-select');
+        const studentSelect = document.getElementById('history-student-select');
+        const selectedClass = classSelect.value;
+
+        studentSelect.replaceChildren(new Option(
+            selectedClass ? 'Select a student' : 'Select a class first',
+            ''
+        ));
+
+        if (!selectedClass) {
+            studentSelect.disabled = true;
+            return;
+        }
+
+        studentDirectory
+            .filter(student => student.hr === selectedClass)
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+            .forEach(student => studentSelect.add(new Option(student.name, student.name)));
+
+        studentSelect.disabled = false;
+    }
+
     function openScoreHistoryModal() {
         const startDateInput = document.getElementById('history-start-date');
         const endDateInput = document.getElementById('history-end-date');
-        const nameInput = document.getElementById('history-student-name');
+
+        if (!studentDirectoryLoaded) {
+            alert('Student list is still loading. Please try again shortly.');
+            return;
+        }
         
-        nameInput.value = '';
+        populateHistoryClassOptions();
+        populateHistoryStudentOptions();
         startDateInput.value = selectedDateStr;
         endDateInput.value = selectedDateStr;
 
@@ -1537,12 +1582,18 @@
     }
 
     async function submitScoreHistorySearch() {
-        const searchName = document.getElementById('history-student-name').value.trim();
+        const selectedClass = document.getElementById('history-class-select').value;
+        const searchName = document.getElementById('history-student-select').value;
         const startStr = document.getElementById('history-start-date').value;
         const endStr = document.getElementById('history-end-date').value;
 
+        if (!selectedClass) {
+            alert("❌ Please select a class!");
+            return;
+        }
+
         if (!searchName) {
-            alert("❌ Please enter a student name!");
+            alert("❌ Please select a student!");
             return;
         }
 
@@ -1557,27 +1608,28 @@
         }
 
         closeScoreHistoryModal();
-        await fetchAndRenderStudentHistory(searchName, startStr, endStr);
+        await fetchAndRenderStudentHistory(searchName, startStr, endStr, selectedClass);
     }
 
-    async function fetchAndRenderStudentHistory(searchName, startStr, endStr) {
+    async function fetchAndRenderStudentHistory(searchName, startStr, endStr, selectedClass) {
         const container = document.getElementById('records-list');
-        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Searching score history for "${searchName}" (${startStr} ~ ${endStr})...</p>`;
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">⏳ Searching score history for "${selectedClass} ${searchName}" (${startStr} ~ ${endStr})...</p>`;
 
         try {
             const querySnapshot = await getDocs(collection(db, "records"));
-            const normalizedSearch = searchName.toLowerCase().replace(/\s+/g, ' ');
+            const normalizedSearch = normalizeLoginValue(searchName);
 
             let matchedRecords = [];
-            let displayStudentName = searchName;
+            let displayStudentName = `${selectedClass} ${searchName}`;
 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 if (data.studentName && data.date) {
-                    const normDocName = data.studentName.trim().toLowerCase().replace(/\s+/g, ' ');
-                    if (normDocName === normalizedSearch && data.date >= startStr && data.date <= endStr) {
+                    const normDocName = normalizeLoginValue(data.studentName);
+                    const recordClass = getStudentHR(data.studentName, data.studentHR);
+                    if (normDocName === normalizedSearch && recordClass === selectedClass && data.date >= startStr && data.date <= endStr) {
                         matchedRecords.push(data);
-                        displayStudentName = data.studentName;
+                        displayStudentName = `${selectedClass} ${data.studentName}`;
                     }
                 }
             });
@@ -2296,6 +2348,7 @@
     window.calculateAbsentStudents = calculateAbsentStudents;
     window.openScoreHistoryModal = openScoreHistoryModal;
     window.closeScoreHistoryModal = closeScoreHistoryModal;
+    window.populateHistoryStudentOptions = populateHistoryStudentOptions;
     window.submitScoreHistorySearch = submitScoreHistorySearch;
     window.toggleDetails = toggleDetails;
     window.prevQuestion = prevQuestion;
