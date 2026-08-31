@@ -602,7 +602,8 @@
         <div>
             <input type="text" id="input-username" class="input-text" placeholder="e.g., Peter Pan (Full English Name)" onkeypress="if(event.key==='Enter') verifyLogin()" onfocus="resetLoginInput()">
         </div>
-        <button class="btn btn-inline" onclick="verifyLogin()">Login</button>
+        <button id="btn-login" class="btn btn-inline" onclick="verifyLogin()" disabled>Loading student list...</button>
+        <p id="login-status" class="status-msg" aria-live="polite">Loading Name.xlsx...</p>
     </div>
 
     <!-- Step 1-A: Admin Portal -->
@@ -821,22 +822,71 @@
         }
     }
 
-    const defaultStudentNames = [
-        "Jason Tsai", "Janice Liang", "Naomi Chang", "Chloe Chang", "Kyle Chang",
-        "Rapunzel Fu", "Amanda Lin", "Timmy Chen", "Mia Chen", "Harvey Chen",
-        "Roy Chou", "Jill Liao", "Wayne Hsieh", "Shannon Liu", "Ray Lin",
-        "Grace Yeh", "Nathan Lin", "Andrew Yeh", "Andely Hsieh", "Angelina Hsieh",
-        "Nini Huang", "Gabriel Chen", "Rick Wei", "Elly Lin", "Alice Yuan",
-        "Baron Yao", "Dean Huang", "Erica Wu", "Brian Chen", "Eason Chen",
-        "Yulin Huang", "Jason Hsu", "Diana Teng", "Jayden Lee", "Kelly Juan",
-        "Louie Liu", "Enzo Chou", "Flora Huang", "Claire Yang", "Caton Chin",
-        "Dora Chan", "Ian Kao", "Queenie Huang", "George Yu", "Yumie Chang",
-        "Claire Tsai", "Zoe Huang", "Lorrine Liu", "Olivia Huang", "Chi Chi Tsai",
-        "Sean Liao", "Yojen Lai", "Nick Huang", "Joe Lin", "Matteo Cheng",
-        "Auston Lai", "Ansel Lai", "Zack Lin", "Kane Lee", "Rachel Sun",
-        "Sydney Lee", "Emily Lin", "Ray Yeh", "Joshua Hsieh", "Aria Loh",
-        "Jasmine Pei", "Josh Chen", "Yosi Chiang"
-    ];
+    // Student directory is loaded from Name.xlsx in the same folder when this page starts.
+    // Every record retains both required fields: HR (class) and Name (student name).
+    const STUDENT_LIST_URL = 'Name.xlsx';
+    let studentDirectory = [];
+    let studentDirectoryLoaded = false;
+    let currentUserHR = '';
+
+    function normalizeLoginValue(value) {
+        return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    function findColumnName(row, expectedName) {
+        return Object.keys(row || {}).find(key =>
+            String(key).trim().toLowerCase() === expectedName.toLowerCase()
+        );
+    }
+
+    async function loadStudentDirectory() {
+        const loginButton = document.getElementById('btn-login');
+        const status = document.getElementById('login-status');
+        const input = document.getElementById('input-username');
+
+        try {
+            const response = await fetch(STUDENT_LIST_URL, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const workbook = XLSX.read(await response.arrayBuffer(), { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+            if (rows.length === 0) throw new Error('Name.xlsx has no student rows.');
+
+            const hrColumn = findColumnName(rows[0], 'HR');
+            const nameColumn = findColumnName(rows[0], 'Name');
+            if (!hrColumn || !nameColumn) {
+                throw new Error('Name.xlsx must contain columns named HR and Name.');
+            }
+
+            studentDirectory = rows
+                .map(row => ({
+                    hr: String(row[hrColumn] || '').trim(),
+                    name: String(row[nameColumn] || '').trim()
+                }))
+                .filter(student => student.hr && student.name);
+
+            if (studentDirectory.length === 0) {
+                throw new Error('No valid HR and Name records were found in Name.xlsx.');
+            }
+
+            studentDirectoryLoaded = true;
+            input.disabled = false;
+            loginButton.disabled = false;
+            loginButton.innerText = 'Login';
+            status.className = 'status-msg success';
+            status.innerText = `Student list loaded (${studentDirectory.length} students).`;
+        } catch (error) {
+            console.error('Student directory load error:', error);
+            studentDirectory = [];
+            studentDirectoryLoaded = false;
+            input.disabled = true;
+            loginButton.disabled = true;
+            loginButton.innerText = 'Student list unavailable';
+            status.className = 'status-msg error';
+            status.innerText = 'Unable to load Name.xlsx. Keep Name.xlsx in this folder and open this page from the cloud website (not directly as a local file).';
+        }
+    }
 
     let currentUser = "";
     let isAdmin = false;
@@ -915,7 +965,13 @@
             return;
         }
 
-        const normalizedInput = inputVal.toLowerCase().replace(/\s+/g, ' ');
+        if (!studentDirectoryLoaded) {
+            inputEl.value = '';
+            inputEl.placeholder = 'Student list is still loading';
+            return;
+        }
+
+        const normalizedInput = normalizeLoginValue(inputVal);
         currentCalDate = new Date();
         selectedDateStr = getFormattedDate(new Date());
 
@@ -924,6 +980,7 @@
         if (normalizedInput === 'administrator') {
             isAdmin = true;
             currentUser = "Administrator";
+            currentUserHR = '';
             
             document.getElementById('user-role-icon').innerText = "⚙️";
             document.getElementById('user-role-label').innerText = "Role";
@@ -939,16 +996,17 @@
             return;
         }
 
-        const matchedName = defaultStudentNames.find(
-            name => name.trim().toLowerCase().replace(/\s+/g, ' ') === normalizedInput
+        const matchedStudent = studentDirectory.find(
+            student => normalizeLoginValue(student.name) === normalizedInput
         );
 
-        if (matchedName) {
+        if (matchedStudent) {
             isAdmin = false;
-            currentUser = matchedName;
+            currentUser = matchedStudent.name;
+            currentUserHR = matchedStudent.hr;
 
             document.getElementById('user-role-icon').innerText = "👤";
-            document.getElementById('user-role-label').innerText = "Student";
+            document.getElementById('user-role-label').innerText = `Student (${currentUserHR})`;
             document.getElementById('current-user-name').innerText = currentUser;
             
             if (userBadgeEl) userBadgeEl.classList.remove('admin-mode');
@@ -1301,31 +1359,37 @@
                     if (!submittedMap[data.date]) {
                         submittedMap[data.date] = new Set();
                     }
-                    submittedMap[data.date].add(data.studentName.trim().toLowerCase());
+                    submittedMap[data.date].add(normalizeLoginValue(data.studentName));
                 }
             });
 
             let studentAbsentMap = {};
 
-            defaultStudentNames.forEach(rawName => {
-                const normalizedName = rawName.trim().toLowerCase();
+            studentDirectory.forEach(student => {
+                const normalizedName = normalizeLoginValue(student.name);
+                const studentKey = `${student.hr}__${normalizedName}`;
                 
                 examDates.forEach(dateStr => {
                     const submittedSet = submittedMap[dateStr] || new Set();
                     if (!submittedSet.has(normalizedName)) {
-                        if (!studentAbsentMap[rawName]) {
-                            studentAbsentMap[rawName] = [];
+                        if (!studentAbsentMap[studentKey]) {
+                            studentAbsentMap[studentKey] = {
+                                name: student.name,
+                                hr: student.hr,
+                                dates: []
+                            };
                         }
-                        studentAbsentMap[rawName].push(dateStr);
+                        studentAbsentMap[studentKey].dates.push(dateStr);
                     }
                 });
             });
 
-            let absentList = Object.keys(studentAbsentMap).map(name => {
+            let absentList = Object.values(studentAbsentMap).map(student => {
                 return {
-                    name: name,
-                    dates: studentAbsentMap[name],
-                    count: studentAbsentMap[name].length
+                    name: student.name,
+                    hr: student.hr,
+                    dates: student.dates,
+                    count: student.dates.length
                 };
             }).filter(item => item.count > 0)
               .sort((a, b) => b.count - a.count);
@@ -1346,7 +1410,7 @@
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f3e8ff; border-bottom:2px solid #d8b4fe; color:#6b21a8;">
-                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px; text-align:left;">Student (HR)</th>
                             <th style="padding:10px;">Absent Days</th>
                             <th style="padding:10px;">Details</th>
                         </tr>
@@ -1368,7 +1432,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name} <span style="color:var(--text-muted); font-size:0.85rem;">(${row.hr})</span></td>
                         <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -2063,6 +2127,7 @@
         if (!studentRecord) {
             studentRecord = {
                 studentName: currentUser,
+                studentHR: currentUserHR,
                 date: targetDate,
                 score: 0,
                 totalPossible: 0,
@@ -2147,6 +2212,9 @@
         });
         document.getElementById('result-list').innerHTML = resultListHtml;
     }
+
+    // Load Name.xlsx automatically after the page DOM is ready.
+    loadStudentDirectory();
 
     // 全局掛載以供 HTML 事件呼叫
     window.verifyLogin = verifyLogin;
