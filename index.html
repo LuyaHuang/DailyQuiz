@@ -833,6 +833,14 @@
         return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
+    function getStudentHR(studentName, savedHR = '') {
+        if (savedHR) return String(savedHR).trim();
+        const matchedStudent = studentDirectory.find(
+            student => normalizeLoginValue(student.name) === normalizeLoginValue(studentName)
+        );
+        return matchedStudent ? matchedStudent.hr : 'Unknown class';
+    }
+
     function findColumnName(row, expectedName) {
         return Object.keys(row || {}).find(key =>
             String(key).trim().toLowerCase() === expectedName.toLowerCase()
@@ -1246,10 +1254,16 @@
                     const wrongItems = data.details.filter(d => !d.isCorrect);
                     if (wrongItems.length > 0) {
                         const name = data.studentName;
-                        if (!studentUncorrectedMap[name]) {
-                            studentUncorrectedMap[name] = [];
+                        const hr = getStudentHR(name, data.studentHR);
+                        const studentKey = `${hr}__${normalizeLoginValue(name)}`;
+                        if (!studentUncorrectedMap[studentKey]) {
+                            studentUncorrectedMap[studentKey] = {
+                                name: name,
+                                hr: hr,
+                                records: []
+                            };
                         }
-                        studentUncorrectedMap[name].push({
+                        studentUncorrectedMap[studentKey].records.push({
                             date: data.date,
                             wrongCount: wrongItems.length,
                             totalQuestions: data.details.length
@@ -1258,14 +1272,18 @@
                 }
             });
 
-            let uncorrectedList = Object.keys(studentUncorrectedMap).map(name => {
-                const records = studentUncorrectedMap[name].sort((a, b) => b.date.localeCompare(a.date));
+            let uncorrectedList = Object.values(studentUncorrectedMap).map(student => {
+                const records = student.records.sort((a, b) => b.date.localeCompare(a.date));
                 return {
-                    name: name,
+                    name: student.name,
+                    hr: student.hr,
                     records: records,
                     count: records.length
                 };
-            }).sort((a, b) => b.count - a.count);
+            }).sort((a, b) =>
+                a.hr.localeCompare(b.hr, undefined, { numeric: true, sensitivity: 'base' }) ||
+                a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+            );
 
             renderUncorrectedStudentsUI(uncorrectedList);
         } catch (error) {
@@ -1283,7 +1301,7 @@
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#fef2f2; border-bottom:2px solid #fecaca; color:#991b1b;">
-                            <th style="padding:10px; text-align:left;">Student Name</th>
+                            <th style="padding:10px; text-align:left;">Class + Student Name</th>
                             <th style="padding:10px;">Uncorrected Days</th>
                             <th style="padding:10px;">Details</th>
                         </tr>
@@ -1294,7 +1312,21 @@
         if (uncorrectedList.length === 0) {
             tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 Great! All students have completed all corrections.</td></tr>`;
         } else {
+            const classCounts = uncorrectedList.reduce((counts, row) => {
+                counts[row.hr] = (counts[row.hr] || 0) + 1;
+                return counts;
+            }, {});
+            let displayedClass = '';
+
             uncorrectedList.forEach((row, idx) => {
+                if (row.hr !== displayedClass) {
+                    tableHtml += `
+                        <tr style="background:#fff1f2; border-top:2px solid #fecaca;">
+                            <td colspan="3" style="padding:10px 12px; text-align:left; font-weight:800; color:#991b1b;">班級 ${row.hr}</td>
+                        </tr>
+                    `;
+                    displayedClass = row.hr;
+                }
                 const detailId = `uncorrected-detail-${idx}`;
                 
                 let detailsListHtml = row.records.map(r => `
@@ -1306,7 +1338,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name}</td>
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.hr} ${row.name}</td>
                         <td style="padding:12px; font-weight:800; color:var(--danger-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -1321,6 +1353,14 @@
                         </td>
                     </tr>
                 `;
+
+                if (!uncorrectedList[idx + 1] || uncorrectedList[idx + 1].hr !== row.hr) {
+                    tableHtml += `
+                        <tr style="background:#fef2f2; border-bottom:2px solid #fecaca;">
+                            <td colspan="3" style="padding:10px 12px; text-align:left; font-weight:800; color:#991b1b;">${row.hr}：${classCounts[row.hr]} 人尚未訂正</td>
+                        </tr>
+                    `;
+                }
             });
         }
 
@@ -1392,7 +1432,10 @@
                     count: student.dates.length
                 };
             }).filter(item => item.count > 0)
-              .sort((a, b) => b.count - a.count);
+              .sort((a, b) =>
+                  a.hr.localeCompare(b.hr, undefined, { numeric: true, sensitivity: 'base' }) ||
+                  a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+              );
 
             renderAbsentStudentsUI(absentList, examDates.length);
         } catch (error) {
@@ -1410,7 +1453,7 @@
                 <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.95rem;">
                     <thead>
                         <tr style="background:#f3e8ff; border-bottom:2px solid #d8b4fe; color:#6b21a8;">
-                            <th style="padding:10px; text-align:left;">Student (HR)</th>
+                            <th style="padding:10px; text-align:left;">Class + Student Name</th>
                             <th style="padding:10px;">Absent Days</th>
                             <th style="padding:10px;">Details</th>
                         </tr>
@@ -1421,7 +1464,21 @@
         if (absentList.length === 0) {
             tableHtml += `<tr><td colspan="3" style="padding:16px; color:#16a34a; font-weight:700;">🎉 Great! All students have completed all exams to date.</td></tr>`;
         } else {
+            const classCounts = absentList.reduce((counts, row) => {
+                counts[row.hr] = (counts[row.hr] || 0) + 1;
+                return counts;
+            }, {});
+            let displayedClass = '';
+
             absentList.forEach((row, idx) => {
+                if (row.hr !== displayedClass) {
+                    tableHtml += `
+                        <tr style="background:#faf5ff; border-top:2px solid #d8b4fe;">
+                            <td colspan="3" style="padding:10px 12px; text-align:left; font-weight:800; color:#6b21a8;">班級 ${row.hr}</td>
+                        </tr>
+                    `;
+                    displayedClass = row.hr;
+                }
                 const detailId = `absent-detail-${idx}`;
                 
                 let detailsListHtml = row.dates.map(d => `
@@ -1432,7 +1489,7 @@
 
                 tableHtml += `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.name} <span style="color:var(--text-muted); font-size:0.85rem;">(${row.hr})</span></td>
+                        <td style="padding:12px; text-align:left; font-weight:700;">👤 ${row.hr} ${row.name}</td>
                         <td style="padding:12px; font-weight:800; color:var(--purple-color); font-size:1.05rem;">
                             ${row.count} Day(s)
                         </td>
@@ -1447,6 +1504,14 @@
                         </td>
                     </tr>
                 `;
+
+                if (!absentList[idx + 1] || absentList[idx + 1].hr !== row.hr) {
+                    tableHtml += `
+                        <tr style="background:#f3e8ff; border-bottom:2px solid #d8b4fe;">
+                            <td colspan="3" style="padding:10px 12px; text-align:left; font-weight:800; color:#6b21a8;">${row.hr}：${classCounts[row.hr]} 人缺考</td>
+                        </tr>
+                    `;
+                }
             });
         }
 
