@@ -603,7 +603,6 @@
             <input type="text" id="input-username" class="input-text" placeholder="e.g., Peter Pan (Full English Name)" onkeypress="if(event.key==='Enter') verifyLogin()" onfocus="resetLoginInput()">
         </div>
         <button id="btn-login" class="btn btn-inline" onclick="verifyLogin()" disabled>Loading student list...</button>
-        <p id="login-status" class="status-msg" aria-live="polite">Loading Name.xlsx...</p>
     </div>
 
     <!-- Step 1-A: Admin Portal -->
@@ -878,7 +877,6 @@
 
     async function loadStudentDirectory() {
         const loginButton = document.getElementById('btn-login');
-        const status = document.getElementById('login-status');
         const input = document.getElementById('input-username');
 
         try {
@@ -911,8 +909,6 @@
             input.disabled = false;
             loginButton.disabled = false;
             loginButton.innerText = 'Login';
-            status.className = 'status-msg success';
-            status.innerText = `Student list loaded (${studentDirectory.length} students).`;
         } catch (error) {
             console.error('Student directory load error:', error);
             studentDirectory = [];
@@ -920,8 +916,6 @@
             input.disabled = true;
             loginButton.disabled = true;
             loginButton.innerText = 'Student list unavailable';
-            status.className = 'status-msg error';
-            status.innerText = 'Unable to load Name.xlsx. Keep Name.xlsx in this folder and open this page from the cloud website (not directly as a local file).';
         }
     }
 
