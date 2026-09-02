@@ -1086,6 +1086,7 @@
         let uncorrectedDates = new Set();
         let submittedDates = new Set();
         let absentDates = new Set();
+        let thumbsUpDates = new Set();
 
         try {
             const examsSnap = await getDocs(collection(db, "exams"));
@@ -1099,6 +1100,8 @@
                         submittedDates.add(data.date);
                         if (data.details && data.details.some(item => !item.isCorrect)) {
                             uncorrectedDates.add(data.date);
+                        } else if (Number(data.score) === 100 || (data.details && data.details.length > 0)) {
+                            thumbsUpDates.add(data.date);
                         }
                     }
                 });
@@ -1128,6 +1131,8 @@
                 dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">❌</span><span>${day}</span>`;
             } else if (!isAdmin && absentDates.has(cellDateStr)) {
                 dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">⛔</span><span>${day}</span>`;
+            } else if (!isAdmin && thumbsUpDates.has(cellDateStr)) {
+                dayCell.innerHTML = `<span style="font-size:0.75rem; margin-right:2px;">👍</span><span>${day}</span>`;
             } else {
                 dayCell.innerText = day;
             }
